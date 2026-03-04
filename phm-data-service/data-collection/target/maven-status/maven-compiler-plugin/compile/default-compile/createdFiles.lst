@@ -1,0 +1,3 @@
+com\phm\collection\entity\SensorData.class
+com\phm\collection\controller\SensorController.class
+com\phm\collection\DataCollectionApplication.class

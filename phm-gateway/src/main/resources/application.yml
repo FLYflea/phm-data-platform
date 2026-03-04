@@ -1,0 +1,32 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: phm-gateway
+  
+  cloud:
+    gateway:
+      routes:
+        - id: test-route
+          uri: http://httpbin.org
+          predicates:
+            - Path=/test/**
+          filters:
+            - StripPrefix=1
+        
+        # 数据采集服务路由
+        - id: collection-route
+          uri: http://localhost:8101
+          predicates:
+            - Path=/api/collection/**
+          filters:
+            - StripPrefix=2
+        
+        # 数据计算服务路由
+        - id: computation-route
+          uri: http://localhost:8102
+          predicates:
+            - Path=/api/computation/**
+          filters:
+            - StripPrefix=2

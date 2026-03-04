@@ -1,0 +1,11 @@
+server:
+  port: 8102
+
+spring:
+  application:
+    name: data-computation
+
+# 日志配置
+logging:
+  level:
+    com.phm.computation: INFO

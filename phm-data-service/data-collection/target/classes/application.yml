@@ -1,0 +1,11 @@
+server:
+  port: 8101
+
+spring:
+  application:
+    name: data-collection
+
+# 日志配置
+logging:
+  level:
+    com.phm.collection: INFO

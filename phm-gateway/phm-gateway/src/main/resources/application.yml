@@ -1,0 +1,16 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: phm-gateway
+  
+  cloud:
+    gateway:
+      routes:
+        - id: test-route
+          uri: http://httpbin.org  # 先用一个测试网站
+          predicates:
+            - Path=/test/**
+          filters:
+            - StripPrefix=1

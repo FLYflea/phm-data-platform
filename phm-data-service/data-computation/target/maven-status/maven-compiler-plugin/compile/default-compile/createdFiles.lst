@@ -1,0 +1,4 @@
+com\phm\computation\DataComputationApplication.class
+com\phm\computation\controller\FusionController.class
+com\phm\computation\controller\SyncController.class
+com\phm\computation\entity\SensorData.class
