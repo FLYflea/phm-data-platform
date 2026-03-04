@@ -1,0 +1,50 @@
+server:
+  port: 8103
+
+spring:
+  application:
+    name: data-storage
+  
+  # PostgreSQL 数据源配置（时序数据存储）
+  # TODO: 待TimescaleDB Hypertable优化 - 将sensor_timeseries表转换为超表以提升时序查询性能
+  datasource:
+    url: jdbc:postgresql://localhost:5432/phm_db
+    username: phm
+    password: phm123
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  
+  # JPA 配置
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 1000
+        order_inserts: true
+        order_updates: true
+        generate_statistics: false
+  
+  # Neo4j 配置（知识图谱存储）
+  # TODO: 待Neo4j索引优化 - 为EquipmentNode和ComponentNode添加复合索引以提升图谱查询性能
+  neo4j:
+    uri: bolt://localhost:7687
+    authentication:
+      username: neo4j
+      password: phm123
+
+# 日志配置
+logging:
+  level:
+    com.phm.storage: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
