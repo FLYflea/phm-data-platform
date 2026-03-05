@@ -30,3 +30,19 @@ spring:
             - Path=/api/computation/**
           filters:
             - StripPrefix=2
+        
+        # 数据存储服务路由
+        - id: storage-route
+          uri: http://localhost:8103
+          predicates:
+            - Path=/api/storage/**
+          filters:
+            - StripPrefix=2
+        
+        # 数据服务层路由
+        - id: service-route
+          uri: http://localhost:8104
+          predicates:
+            - Path=/api/service/**
+          filters:
+            - StripPrefix=2

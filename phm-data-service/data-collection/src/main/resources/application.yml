@@ -5,6 +5,11 @@ spring:
   application:
     name: data-collection
 
+# 数据存储服务配置
+storage:
+  service:
+    url: http://localhost:8103
+
 # 日志配置
 logging:
   level:
