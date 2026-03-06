@@ -1,115 +1,127 @@
 package com.phm.service.controller;
 
-import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
 
 /**
- * 可视化数据控制器
- * 
- * 职责：将原始数据转换为图表所需的格式
- * - 时间序列数据 → 图表格式 { timestamps: [...], values: [...] }
+ * P1: 可视化数据控制器
+ *
+ * 职责：将原始数据转换为 ECharts 图表格式
+ * - 时序数据 → ECharts line 图表
+ * - 饼图数据（预留）
  */
 @Slf4j
 @RestController
-@RequestMapping("/service")
+@RequestMapping("/service/chart")
 @RequiredArgsConstructor
 public class VisualizationController {
-    
+
     private final RestTemplate restTemplate;
-    
+
     @Value("${storage.service.url}")
     private String storageServiceUrl;
-    
+
     /**
-     * 获取图表数据
-     * 返回格式：{ "timestamps": [...], "values": [...] }
-     * 
+     * P1: 获取时序数据图表（ECharts格式）
+     *
      * @param deviceId 设备ID
-     * @return 图表数据
+     * @param sensorType 传感器类型
+     * @param start 开始时间
+     * @param end 结束时间
+     * @return ECharts格式数据 { xAxis: [...], series: [...] }
      */
-    @GetMapping("/chart")
-    public ResponseEntity<?> getChartData(@RequestParam String deviceId) {
-        log.info("获取图表数据: deviceId={}", deviceId);
-        
-        // 默认查询最近24小时数据
-        Instant endTime = Instant.now();
-        Instant startTime = endTime.minusSeconds(24 * 60 * 60); // 24小时前
-        
-        // 构建存储层查询URL
-        String queryUrl = UriComponentsBuilder
+    @GetMapping("/timeseries")
+    public Map<String, Object> getTimeseriesChart(
+            @RequestParam String deviceId,
+            @RequestParam String sensorType,
+            @RequestParam String start,
+            @RequestParam String end) {
+
+        log.info("P1获取时序图表: deviceId={}, sensorType={}", deviceId, sensorType);
+
+        // 查询 storage 层
+        String url = UriComponentsBuilder
                 .fromHttpUrl(storageServiceUrl + "/storage/timeseries/query")
                 .queryParam("deviceId", deviceId)
-                .queryParam("start", startTime.toString())
-                .queryParam("end", endTime.toString())
+                .queryParam("sensorType", sensorType)
+                .queryParam("start", start)
+                .queryParam("end", end)
                 .toUriString();
-        
+
+        Map<String, Object> response = new HashMap<>();
+
         try {
-            // 调用存储层服务获取原始数据
-            ResponseEntity<List> response = restTemplate.getForEntity(queryUrl, List.class);
-            List<Map<String, Object>> rawData = response.getBody();
-            
-            // 转换为图表格式
-            ChartData chartData = convertToChartData(rawData);
-            
-            log.info("图表数据生成完成: timestamps={}, values={}", 
-                    chartData.getTimestamps().size(), chartData.getValues().size());
-            
-            return ResponseEntity.ok(chartData);
-        } catch (Exception e) {
-            log.error("获取图表数据失败: {}", e.getMessage());
-            return ResponseEntity.status(500).body("获取图表数据失败: " + e.getMessage());
-        }
-    }
-    
-    /**
-     * 将原始数据转换为图表格式
-     * 
-     * @param rawData 原始传感器数据列表
-     * @return 图表数据
-     */
-    private ChartData convertToChartData(List<Map<String, Object>> rawData) {
-        ChartData chartData = new ChartData();
-        List<String> timestamps = new ArrayList<>();
-        List<Double> values = new ArrayList<>();
-        
-        if (rawData != null) {
-            for (Map<String, Object> record : rawData) {
-                // 提取时间戳
-                Object timestampObj = record.get("timestamp");
-                if (timestampObj != null) {
-                    timestamps.add(timestampObj.toString());
+            @SuppressWarnings("unchecked")
+            Map<String, Object> result = restTemplate.getForObject(url, Map.class);
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> data = result != null ? (List<Map<String, Object>>) result.get("data") : Collections.emptyList();
+
+            // 转换为 ECharts 格式
+            List<String> xAxis = new ArrayList<>();
+            List<Double> seriesData = new ArrayList<>();
+
+            for (Map<String, Object> item : data) {
+                Object timestamp = item.get("timestamp");
+                Object value = item.get("value");
+
+                if (timestamp != null) {
+                    xAxis.add(timestamp.toString());
                 }
-                
-                // 提取数值
-                Object valueObj = record.get("value");
-                if (valueObj != null) {
-                    values.add(Double.valueOf(valueObj.toString()));
+                if (value != null) {
+                    seriesData.add(Double.valueOf(value.toString()));
                 }
             }
+
+            // 构建 ECharts 格式
+            Map<String, Object> series = new HashMap<>();
+            series.put("name", sensorType);
+            series.put("type", "line");
+            series.put("data", seriesData);
+            series.put("smooth", true);
+
+            response.put("xAxis", xAxis);
+            response.put("series", Collections.singletonList(series));
+            response.put("status", "success");
+            response.put("count", data.size());
+
+            log.info("P1时序图表生成完成: {} 个数据点", data.size());
+
+        } catch (Exception e) {
+            log.error("P1获取时序图表失败: {}", e.getMessage());
+            response.put("status", "error");
+            response.put("message", e.getMessage());
         }
-        
-        chartData.setTimestamps(timestamps);
-        chartData.setValues(values);
-        return chartData;
+
+        return response;
     }
-    
+
     /**
-     * 图表数据格式
+     * P1: 饼图接口（预留）
+     *
+     * @return 预留提示
      */
-    @Data
-    public static class ChartData {
-        private List<String> timestamps;
-        private List<Double> values;
+    @GetMapping("/pie")
+    public Map<String, Object> getPieChart() {
+        log.info("P1饼图接口调用（预留）");
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", "reserved");
+        response.put("note", "饼图待实现");
+        response.put("plannedFeatures", Arrays.asList(
+            "设备状态分布",
+            "传感器类型分布",
+            "故障类型分布",
+            "告警级别分布"
+        ));
+
+        return response;
     }
 }
