@@ -25,7 +25,7 @@ services:
     image: neo4j:5.15
     container_name: phm-neo4j
     environment:
-      NEO4J_AUTH: neo4j/phm123
+      NEO4J_AUTH: neo4j/phm123456
       NEO4J_PLUGINS: '["apoc"]'
       NEO4J_dbms_security_procedures_unrestricted: apoc.*
     ports:

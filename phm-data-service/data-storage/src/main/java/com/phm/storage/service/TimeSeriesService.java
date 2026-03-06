@@ -42,7 +42,7 @@ public class TimeSeriesService {
      * @param data 传感器时序数据
      * @return 保存后的数据（包含生成的ID）
      */
-    @Transactional
+    @Transactional("transactionManager")
     public SensorTimeSeries save(SensorTimeSeries data) {
         if (data == null) {
             log.warn("保存失败：数据为空");
@@ -66,7 +66,7 @@ public class TimeSeriesService {
      * @param dataList 传感器时序数据列表
      * @return 保存后的数据列表
      */
-    @Transactional
+    @Transactional("transactionManager")
     public List<SensorTimeSeries> saveBatch(List<SensorTimeSeries> dataList) {
         if (dataList == null || dataList.isEmpty()) {
             log.warn("批量保存失败：数据列表为空");

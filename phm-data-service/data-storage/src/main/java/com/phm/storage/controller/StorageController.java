@@ -105,10 +105,10 @@ public class StorageController {
      */
     @GetMapping("/timeseries/query")
     public Map<String, Object> queryByDeviceAndTimeRange(
-            @RequestParam String deviceId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant start,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant end,
-            @RequestParam(required = false) String sensorType) {
+            @RequestParam(name = "deviceId") String deviceId,
+            @RequestParam(name = "start") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant start,
+            @RequestParam(name = "end") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant end,
+            @RequestParam(name = "sensorType", required = false) String sensorType) {
         
         log.info("P0查询传感器数据: deviceId={}, sensorType={}, start={}, end={}", 
                 deviceId, sensorType, start, end);
@@ -141,10 +141,10 @@ public class StorageController {
      */
     @GetMapping("/timeseries/aggregate")
     public Map<String, Object> aggregateByInterval(
-            @RequestParam String deviceId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant start,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant end,
-            @RequestParam(defaultValue = "hour") String interval) {
+            @RequestParam(name = "deviceId") String deviceId,
+            @RequestParam(name = "start") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant start,
+            @RequestParam(name = "end") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant end,
+            @RequestParam(name = "interval", defaultValue = "hour") String interval) {
         
         log.info("P0聚合统计查询: deviceId={}, interval={}, start={}, end={}", 
                 deviceId, interval, start, end);
@@ -204,7 +204,7 @@ public class StorageController {
      */
     @PostMapping("/graph/component")
     public Map<String, Object> saveComponent(
-            @RequestParam String equipmentId,
+            @RequestParam(name = "equipmentId") String equipmentId,
             @RequestBody ComponentNode component) {
         
         log.info("P1保存组件: equipmentId={}, componentId={}, name={}",
@@ -233,9 +233,9 @@ public class StorageController {
      */
     @PostMapping("/graph/relation")
     public Map<String, Object> createRelation(
-            @RequestParam String fromComponentId,
-            @RequestParam String toComponentId,
-            @RequestParam String relationType,
+            @RequestParam(name = "fromComponentId") String fromComponentId,
+            @RequestParam(name = "toComponentId") String toComponentId,
+            @RequestParam(name = "relationType") String relationType,
             @RequestBody(required = false) Map<String, Object> properties) {
         
         log.info("P1创建关系: {} -> {} [{}]", fromComponentId, toComponentId, relationType);
@@ -260,7 +260,7 @@ public class StorageController {
      */
     @GetMapping("/graph/equipment/{equipmentId}")
     public Map<String, Object> getEquipmentWithComponents(
-            @PathVariable String equipmentId) {
+            @PathVariable(name = "equipmentId") String equipmentId) {
         
         log.info("P1查询设备及其部件: equipmentId={}", equipmentId);
         
@@ -294,9 +294,9 @@ public class StorageController {
      */
     @GetMapping("/graph/path")
     public Map<String, Object> findPath(
-            @RequestParam String startId,
-            @RequestParam String endId,
-            @RequestParam(defaultValue = "3") int maxDepth) {
+            @RequestParam(name = "startId") String startId,
+            @RequestParam(name = "endId") String endId,
+            @RequestParam(name = "maxDepth", defaultValue = "3") int maxDepth) {
         
         log.info("P1查询路径: {} -> {}, maxDepth={}", startId, endId, maxDepth);
         
@@ -359,7 +359,7 @@ public class StorageController {
      * @return 统一响应格式 { "documents": [...], "count": xxx, "status": "success" }
      */
     @GetMapping("/document/search")
-    public Map<String, Object> searchDocuments(@RequestParam String keyword) {
+    public Map<String, Object> searchDocuments(@RequestParam(name = "keyword") String keyword) {
         log.info("P2搜索文档: keyword={}", keyword);
         
         List<DocumentService.Document> results = documentService.searchDocuments(keyword);

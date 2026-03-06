@@ -2,3 +2,7 @@ D:\1\PHM-Platform\phm-data-service\data-computation\src\main\java\com\phm\comput
 D:\1\PHM-Platform\phm-data-service\data-computation\src\main\java\com\phm\computation\controller\SyncController.java
 D:\1\PHM-Platform\phm-data-service\data-computation\src\main\java\com\phm\computation\DataComputationApplication.java
 D:\1\PHM-Platform\phm-data-service\data-computation\src\main\java\com\phm\computation\entity\SensorData.java
+D:\1\PHM-Platform\phm-data-service\data-computation\src\main\java\com\phm\computation\service\DataFusionService.java
+D:\1\PHM-Platform\phm-data-service\data-computation\src\main\java\com\phm\computation\service\FeatureEngineeringService.java
+D:\1\PHM-Platform\phm-data-service\data-computation\src\main\java\com\phm\computation\service\PreprocessService.java
+D:\1\PHM-Platform\phm-data-service\data-computation\src\main\java\com\phm\computation\service\TimeSyncService.java

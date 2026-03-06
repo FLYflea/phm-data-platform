@@ -1,3 +1,8 @@
-com\phm\collection\entity\SensorData.class
+com\phm\collection\util\DeltaCompressionUtil.class
+com\phm\collection\controller\SensorController$SensorTimeSeriesDTO.class
 com\phm\collection\controller\SensorController.class
+com\phm\collection\service\ImageParserService.class
+com\phm\collection\service\TextParserService.class
+com\phm\collection\entity\SensorData.class
+com\phm\collection\config\RestTemplateConfig.class
 com\phm\collection\DataCollectionApplication.class

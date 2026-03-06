@@ -1,4 +1,9 @@
+com\phm\computation\service\DataFusionService$FusionResult.class
+com\phm\computation\service\FeatureEngineeringService.class
+com\phm\computation\service\DataFusionService.class
+com\phm\computation\controller\SyncController.class
+com\phm\computation\service\PreprocessService.class
 com\phm\computation\DataComputationApplication.class
 com\phm\computation\controller\FusionController.class
-com\phm\computation\controller\SyncController.class
 com\phm\computation\entity\SensorData.class
+com\phm\computation\service\TimeSyncService.class

@@ -18,7 +18,15 @@ import java.util.Optional;
  * - 考虑添加异步查询方法
  */
 @Repository
-public interface EquipmentRepository extends Neo4jRepository<EquipmentNode, String> {
+public interface EquipmentRepository extends Neo4jRepository<EquipmentNode, Long> {
+    
+    /**
+     * 按业务ID查找设备
+     * 
+     * @param equipmentId 业务设备ID
+     * @return 设备节点
+     */
+    Optional<EquipmentNode> findByEquipmentId(String equipmentId);
     
     /**
      * 按名称查找设备

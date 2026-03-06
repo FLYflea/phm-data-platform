@@ -1,28 +1,16 @@
 server:
-  port: 8102
+  port: 8101
 
 spring:
   application:
-    name: data-computation
+    name: data-collection
 
 # 数据存储服务配置
 storage:
   service:
     url: http://localhost:8103
 
-# 数据采集服务配置
-collection:
-  service:
-    url: http://localhost:8101
-
-# 数据融合权重配置
-fusion:
-  weights:
-    vibration: 0.5
-    temperature: 0.3
-    current: 0.2
-
 # 日志配置
 logging:
   level:
-    com.phm.computation: INFO
+    com.phm.collection: INFO

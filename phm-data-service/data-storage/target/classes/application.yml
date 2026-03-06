@@ -40,7 +40,7 @@ spring:
     uri: bolt://localhost:7687
     authentication:
       username: neo4j
-      password: phm123
+      password: phm123456
 
 # 日志配置
 logging:
