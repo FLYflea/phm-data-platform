@@ -10,15 +10,18 @@ import java.time.Instant;
 /**
  * 传感器时序数据实体
  * 
+ * P0: 列分解存储 - TimescaleDB Hypertable自动分区，自研引擎接口预留
+ * P0: 聚簇存储 - 数据库原生分区策略，自定义策略接口预留
+ * 
  * TODO: 待TimescaleDB Hypertable优化
  * - 建议将本表转换为TimescaleDB超表：SELECT create_hypertable('sensor_timeseries', 'timestamp');
- * - 建议按device_id和timestamp创建复合索引以提升查询性能
  * - 考虑数据保留策略：使用TimescaleDB的drop_chunks自动清理过期数据
  */
 @Data
 @Entity
 @Table(name = "sensor_timeseries", 
        indexes = {
+           @Index(name = "idx_device_time", columnList = "deviceId, timestamp"),
            @Index(name = "idx_sensor_device_timestamp", columnList = "deviceId, timestamp"),
            @Index(name = "idx_sensor_type_timestamp", columnList = "sensorType, timestamp")
        })
