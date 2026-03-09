@@ -15,7 +15,6 @@
     
     <!-- 子模块列表 -->
     <modules>
-        <module>phm-common</module>
         <module>phm-gateway</module>
         <module>phm-data-service/data-collection</module>
         <module>phm-data-service/data-computation</module>
@@ -37,6 +36,7 @@
         <!-- 其他依赖版本 -->
         <postgresql.version>42.7.3</postgresql.version>
         <neo4j.version>5.18.0</neo4j.version>
+        <lombok.version>1.18.30</lombok.version>
     </properties>
     
     <!-- 依赖版本管理（子模块引用时无需写版本号） -->
@@ -83,5 +83,23 @@
                 </plugin>
             </plugins>
         </pluginManagement>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <source>17</source>
+                    <target>17</target>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+        </plugins>
     </build>
 </project>

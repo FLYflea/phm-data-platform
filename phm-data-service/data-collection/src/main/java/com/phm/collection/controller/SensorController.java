@@ -17,13 +17,13 @@ import java.time.ZoneOffset;
 import java.util.*;
 
 /**
- * 数据采集控制器
+ * 数据采集控制器（已改造）
  * 
- * 功能模块：
- * - 传感器数据接收与存储
- * - 批量数据压缩
- * - 图像文档解析
- * - 文本文档解析
+ * 职责变更：
+ * - 传感器数据接收 → 转发给计算层处理
+ * - 图像/文本解析服务 → 供计算层调用
+ * 
+ * 新数据流：采集层 → 计算层 → 存储层
  */
 @Slf4j
 @RestController
@@ -35,13 +35,15 @@ public class SensorController {
     private final ImageParserService imageParserService;
     private final TextParserService textParserService;
 
-    @Value("${storage.service.url}")
-    private String storageServiceUrl;
+    @Value("${computation.service.url:http://localhost:8102}")
+    private String computationServiceUrl;
 
     // ==================== 传感器数据接口 ====================
 
     /**
-     * 接收单条传感器数据并保存到存储层
+     * 接收单条传感器数据 → 转发给计算层处理
+     * 
+     * 改造后：采集层只负责接收，计算层负责处理+存储
      * 
      * @param sensorData 传感器数据
      * @return 统一响应格式
@@ -55,34 +57,49 @@ public class SensorController {
                 sensorData.getTimestamp());
 
         try {
-            // 转换为存储层需要的格式
-            SensorTimeSeriesDTO storageData = convertToStorageFormat(sensorData);
+            // 构造流水线请求数据
+            List<Map<String, Object>> rawDataList = new ArrayList<>();
+            Map<String, Object> dataMap = new HashMap<>();
+            dataMap.put("deviceId", sensorData.getDeviceId());
+            dataMap.put("sensorType", sensorData.getSensorType());
+            dataMap.put("value", sensorData.getValue());
+            dataMap.put("timestamp", sensorData.getTimestamp() != null ? 
+                sensorData.getTimestamp().toString() : Instant.now().toString());
+            rawDataList.add(dataMap);
             
-            // 调用 storage 服务保存数据
-            String saveUrl = storageServiceUrl + "/storage/timeseries/save";
-            ResponseEntity<SensorTimeSeriesDTO> response = restTemplate.postForEntity(saveUrl, storageData, SensorTimeSeriesDTO.class);
+            // 转发给计算层处理（时间同步→融合→特征→存储）
+            String pipelineUrl = computationServiceUrl + "/computation/pipeline/simple";
+            Map<String, Object> pipelineRequest = new HashMap<>();
+            pipelineRequest.put("rawData", rawDataList);
+            pipelineRequest.put("deviceId", sensorData.getDeviceId());
+            pipelineRequest.put("sensorType", sensorData.getSensorType());
             
-            if (response.getStatusCode().is2xxSuccessful()) {
-                log.info("数据保存成功: deviceId={}", sensorData.getDeviceId());
-                return ResponseEntity.ok(buildSuccessResponse(
-                        Map.of("deviceId", sensorData.getDeviceId(), "saved", true),
-                        "数据接收并保存成功"
-                ));
+            @SuppressWarnings("unchecked")
+            Map<String, Object> response = restTemplate.postForObject(pipelineUrl, pipelineRequest, Map.class);
+            
+            if (response != null && "success".equals(response.get("status"))) {
+                log.info("数据已转发到计算层处理: deviceId={}", sensorData.getDeviceId());
+                @SuppressWarnings("unchecked")
+                Map<String, Object> resultData = (Map<String, Object>) response.get("data");
+                resultData.put("deviceId", sensorData.getDeviceId());
+                return ResponseEntity.ok(buildSuccessResponse(resultData, "数据已接收并转发到计算层处理"));
             } else {
-                log.error("数据保存失败: {}", response.getStatusCode());
-                return ResponseEntity.status(500).body(buildErrorResponse("数据保存失败: " + response.getStatusCode()));
+                log.error("计算层处理失败: {}", response != null ? response.get("message") : "无响应");
+                return ResponseEntity.status(500).body(buildErrorResponse("计算层处理失败"));
             }
         } catch (Exception e) {
-            log.error("数据保存异常: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).body(buildErrorResponse("数据保存异常: " + e.getMessage()));
+            log.error("数据转发异常: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(buildErrorResponse("数据转发异常: " + e.getMessage()));
         }
     }
 
     /**
-     * 批量接收传感器数据，计算 Delta 压缩比
+     * 批量接收传感器数据 → 转发给计算层完整流水线处理
+     * 
+     * 改造后：调用计算层的完整流水线（同步→融合→特征→存储）
      * 
      * @param sensorDataList 传感器数据列表
-     * @return 统一响应格式（包含压缩比信息）
+     * @return 统一响应格式
      */
     @PostMapping("/sensor/batch")
     public ResponseEntity<Map<String, Object>> receiveBatchSensorData(@RequestBody List<SensorData> sensorDataList) {
@@ -93,42 +110,55 @@ public class SensorController {
         }
 
         try {
-            // 提取数值用于压缩计算
+            // 提取数值用于压缩计算（本地计算，不存储）
             double[] values = sensorDataList.stream()
                     .mapToDouble(SensorData::getValue)
                     .toArray();
-
-            // 计算 Delta 压缩
             byte[] compressed = deltaCompressionUtil.compress(values);
             double compressionRatio = deltaCompressionUtil.calculateCompressionRatio(values, compressed);
 
-            // 转换为存储层需要的格式
-            List<SensorTimeSeriesDTO> storageDataList = sensorDataList.stream()
-                    .map(this::convertToStorageFormat)
-                    .toList();
+            // 转换为原始数据格式
+            List<Map<String, Object>> rawDataList = new ArrayList<>();
+            String deviceId = sensorDataList.get(0).getDeviceId();
+            String sensorType = sensorDataList.get(0).getSensorType();
+            
+            for (SensorData sensorData : sensorDataList) {
+                Map<String, Object> dataMap = new HashMap<>();
+                dataMap.put("deviceId", sensorData.getDeviceId());
+                dataMap.put("sensorType", sensorData.getSensorType());
+                dataMap.put("value", sensorData.getValue());
+                dataMap.put("timestamp", sensorData.getTimestamp() != null ? 
+                    sensorData.getTimestamp().toString() : Instant.now().toString());
+                rawDataList.add(dataMap);
+            }
 
-            // 调用 storage 服务批量保存
-            String batchUrl = storageServiceUrl + "/storage/timeseries/batch";
-            ResponseEntity<List> response = restTemplate.postForEntity(batchUrl, storageDataList, List.class);
+            // 转发给计算层完整流水线处理
+            String pipelineUrl = computationServiceUrl + "/computation/pipeline/full";
+            Map<String, Object> pipelineRequest = new HashMap<>();
+            pipelineRequest.put("rawData", rawDataList);
+            pipelineRequest.put("deviceId", deviceId);
+            pipelineRequest.put("sensorType", sensorType);
+            
+            @SuppressWarnings("unchecked")
+            Map<String, Object> response = restTemplate.postForObject(pipelineUrl, pipelineRequest, Map.class);
 
-            if (response.getStatusCode().is2xxSuccessful()) {
-                int savedCount = response.getBody() != null ? response.getBody().size() : 0;
-                log.info("批量数据保存成功，条数: {}, 压缩比: {}%", savedCount, String.format("%.2f", compressionRatio));
+            if (response != null && "success".equals(response.get("status"))) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> resultData = (Map<String, Object>) response.get("data");
+                resultData.put("compressionRatio", compressionRatio);
+                resultData.put("originalSize", values.length * 8);
+                resultData.put("compressedSize", compressed.length);
                 
-                Map<String, Object> data = new HashMap<>();
-                data.put("savedCount", savedCount);
-                data.put("compressionRatio", compressionRatio);
-                data.put("originalSize", values.length * 8);
-                data.put("compressedSize", compressed.length);
-                
-                return ResponseEntity.ok(buildSuccessResponse(data, "批量数据接收并保存成功，Delta压缩完成"));
+                log.info("批量数据已转发到计算层处理，压缩比: {}%", String.format("%.2f", compressionRatio));
+                return ResponseEntity.ok(buildSuccessResponse(resultData, 
+                    "批量数据已接收并转发到计算层完整流水线处理"));
             } else {
-                log.error("批量数据保存失败: {}", response.getStatusCode());
-                return ResponseEntity.status(500).body(buildErrorResponse("批量数据保存失败: " + response.getStatusCode()));
+                log.error("计算层处理失败: {}", response != null ? response.get("message") : "无响应");
+                return ResponseEntity.status(500).body(buildErrorResponse("计算层处理失败"));
             }
         } catch (Exception e) {
-            log.error("批量数据保存异常: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).body(buildErrorResponse("批量数据保存异常: " + e.getMessage()));
+            log.error("批量数据转发异常: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(buildErrorResponse("批量数据转发异常: " + e.getMessage()));
         }
     }
 
@@ -236,15 +266,16 @@ public class SensorController {
     // ==================== 私有方法 ====================
 
     /**
-     * 将 SensorData 转换为 SensorTimeSeriesDTO 格式
+     * [已废弃] 原用于直接转存储层格式
+     * 现在数据通过计算层处理后再存储
      */
+    @Deprecated
     private SensorTimeSeriesDTO convertToStorageFormat(SensorData sensorData) {
         SensorTimeSeriesDTO dto = new SensorTimeSeriesDTO();
         dto.setDeviceId(sensorData.getDeviceId());
         dto.setSensorType(sensorData.getSensorType());
         dto.setValue(sensorData.getValue());
         
-        // 将 LocalDateTime 转换为 Instant (UTC)
         if (sensorData.getTimestamp() != null) {
             dto.setTimestamp(sensorData.getTimestamp().toInstant(ZoneOffset.UTC));
         } else {

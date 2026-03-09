@@ -5,7 +5,12 @@ spring:
   application:
     name: data-collection
 
-# 数据存储服务配置
+# 数据计算服务配置（改造后：采集层 → 计算层 → 存储层）
+computation:
+  service:
+    url: http://localhost:8102
+
+# [保留但不再直接使用] 数据存储服务配置
 storage:
   service:
     url: http://localhost:8103
@@ -14,3 +19,13 @@ storage:
 logging:
   level:
     com.phm.collection: INFO
+
+    
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always

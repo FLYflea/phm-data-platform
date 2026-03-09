@@ -169,13 +169,16 @@ public class KnowledgeGraphService {
                 return;
         }
 
+                // 创建 final 副本供 lambda 使用
+        final String finalPropsJson = propsJson;
+
         try (Session session = neo4jDriver.session()) {
             session.executeWrite(tx -> {
                 tx.run(cypher, parameters(
                     "fromId", fromId,
                     "toId", toId,
                     "type", relationType,
-                    "props", propsJson
+                    "props", finalPropsJson
                 ));
                 return null;
             });

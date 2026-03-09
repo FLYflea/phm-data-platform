@@ -5,6 +5,15 @@ spring:
   application:
     name: data-computation
 
+# 下游服务配置
+storage:
+  service:
+    url: http://localhost:8103
+
+collection:
+  service:
+    url: http://localhost:8101
+
 # 日志配置
 logging:
   level:

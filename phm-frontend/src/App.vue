@@ -4,8 +4,8 @@
       <!-- 顶部导航 -->
       <el-header class="app-header">
         <div class="header-content">
-          <h1 class="app-title">PHM Platform</h1>
-          <span class="app-subtitle">故障预测与健康管理平台</span>
+          <h1 class="app-title">设备全寿命周期数据管理平台</h1>
+          <span class="app-subtitle">PHM Platform</span>
         </div>
       </el-header>
 
