@@ -1,57 +1,176 @@
 <template>
-  <div class="app-container">
-    <el-container>
-      <!-- 顶部导航 -->
-      <el-header class="app-header">
-        <div class="header-content">
-          <h1 class="app-title">设备全寿命周期数据管理平台</h1>
-          <span class="app-subtitle">PHM Platform</span>
+  <div class="phm-platform">
+    <!-- 顶部导航 -->
+    <el-header class="platform-header">
+      <div class="header-content">
+        <h1>PHM Platform</h1>
+        <span class="subtitle">设备全寿命周期数据管理平台</span>
+      </div>
+    </el-header>
+
+    <!-- 主体布局 -->
+    <el-container class="main-container">
+      <!-- 左侧菜单 -->
+      <el-aside width="220px" class="sidebar">
+        <el-menu
+          :default-active="activeMenu"
+          class="layer-menu"
+          @select="handleMenuSelect"
+        >
+          <!-- 采集层 -->
+          <el-sub-menu index="collection">
+            <template #title>
+              <el-icon><Download /></el-icon>
+              <span>采集层</span>
+            </template>
+            <el-menu-item index="collection-sensor">
+              <span>传感器数据采集</span>
+            </el-menu-item>
+            <el-menu-item index="collection-document">
+              <span>文档解析</span>
+            </el-menu-item>
+          </el-sub-menu>
+
+          <!-- 计算层 -->
+          <el-sub-menu index="computation">
+            <template #title>
+              <el-icon><Cpu /></el-icon>
+              <span>计算层</span>
+            </template>
+            <el-menu-item index="computation-sync">
+              <span>时间同步</span>
+            </el-menu-item>
+            <el-menu-item index="computation-fusion">
+              <span>数据融合</span>
+            </el-menu-item>
+            <el-menu-item index="computation-feature">
+              <span>特征工程</span>
+            </el-menu-item>
+            <el-menu-item index="computation-knowledge">
+              <span>知识图谱</span>
+            </el-menu-item>
+          </el-sub-menu>
+
+          <!-- 存储层 -->
+          <el-sub-menu index="storage">
+            <template #title>
+              <el-icon><Coin /></el-icon>
+              <span>存储层</span>
+            </template>
+            <el-menu-item index="storage-timeseries">
+              <span>时序数据查询</span>
+            </el-menu-item>
+            <el-menu-item index="storage-graph">
+              <span>知识图谱查询</span>
+            </el-menu-item>
+          </el-sub-menu>
+
+          <!-- 服务层 -->
+          <el-sub-menu index="service">
+            <template #title>
+              <el-icon><Service /></el-icon>
+              <span>服务层</span>
+            </template>
+            <el-menu-item index="service-query">
+              <span>统一查询</span>
+            </el-menu-item>
+            <el-menu-item index="service-visualization">
+              <span>数据可视化</span>
+            </el-menu-item>
+          </el-sub-menu>
+        </el-menu>
+      </el-aside>
+
+      <!-- 内容区域 -->
+      <el-main class="content-area">
+        <!-- 采集层 - 传感器数据采集 -->
+        <CollectionSensor v-if="activeMenu === 'collection-sensor'" />
+        
+        <!-- 采集层 - 文档解析 -->
+        <CollectionDocument v-else-if="activeMenu === 'collection-document'" />
+        
+        <!-- 计算层 - 时间同步 -->
+        <ComputationSync v-else-if="activeMenu === 'computation-sync'" />
+        
+        <!-- 计算层 - 数据融合 -->
+        <ComputationFusion v-else-if="activeMenu === 'computation-fusion'" />
+        
+        <!-- 计算层 - 特征工程 -->
+        <ComputationFeature v-else-if="activeMenu === 'computation-feature'" />
+        
+        <!-- 计算层 - 知识图谱 -->
+        <ComputationKnowledge v-else-if="activeMenu === 'computation-knowledge'" />
+        
+        <!-- 存储层 - 时序数据查询 -->
+        <StorageTimeseries v-else-if="activeMenu === 'storage-timeseries'" />
+        
+        <!-- 存储层 - 知识图谱查询 -->
+        <StorageGraph v-else-if="activeMenu === 'storage-graph'" />
+        
+        <!-- 服务层 - 统一查询 -->
+        <ServiceQuery v-else-if="activeMenu === 'service-query'" />
+        
+        <!-- 服务层 - 数据可视化 -->
+        <ServiceVisualization v-else-if="activeMenu === 'service-visualization'" />
+        
+        <!-- 默认页面 -->
+        <div v-else class="welcome-page">
+          <el-empty description="请选择左侧菜单开始操作">
+            <template #image>
+              <el-icon :size="80" color="#409eff"><Platform /></el-icon>
+            </template>
+          </el-empty>
+          <div class="layer-intro">
+            <el-row :gutter="20">
+              <el-col :span="6">
+                <el-card>
+                  <h4>采集层</h4>
+                  <p>多模态数据接入与压缩</p>
+                </el-card>
+              </el-col>
+              <el-col :span="6">
+                <el-card>
+                  <h4>计算层</h4>
+                  <p>时间同步与数据融合</p>
+                </el-card>
+              </el-col>
+              <el-col :span="6">
+                <el-card>
+                  <h4>存储层</h4>
+                  <p>多模态数据存储与索引</p>
+                </el-card>
+              </el-col>
+              <el-col :span="6">
+                <el-card>
+                  <h4>服务层</h4>
+                  <p>服务治理与数据封装</p>
+                </el-card>
+              </el-col>
+            </el-row>
+          </div>
         </div>
-      </el-header>
-
-      <!-- 主体内容 -->
-      <el-container>
-        <!-- 侧边栏菜单 -->
-        <el-aside width="200px" class="app-sidebar">
-          <el-menu
-            :default-active="activeMenu"
-            class="sidebar-menu"
-            @select="handleMenuSelect"
-          >
-            <el-menu-item index="monitor">
-              <el-icon><Monitor /></el-icon>
-              <span>数据监控</span>
-            </el-menu-item>
-            <el-menu-item index="query">
-              <el-icon><Search /></el-icon>
-              <span>数据查询</span>
-            </el-menu-item>
-            <el-menu-item index="chart">
-              <el-icon><TrendCharts /></el-icon>
-              <span>可视化图表</span>
-            </el-menu-item>
-          </el-menu>
-        </el-aside>
-
-        <!-- 内容区域 -->
-        <el-main class="app-main">
-          <DataMonitor v-if="activeMenu === 'monitor'" />
-          <DataQuery v-if="activeMenu === 'query'" />
-          <DataChart v-if="activeMenu === 'chart'" />
-        </el-main>
-      </el-container>
+      </el-main>
     </el-container>
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
-import { Monitor, Search, TrendCharts } from '@element-plus/icons-vue'
-import DataMonitor from './views/DataMonitor.vue'
-import DataQuery from './views/DataQuery.vue'
-import DataChart from './views/DataChart.vue'
+import { Download, Cpu, Coin, Service, Platform } from '@element-plus/icons-vue'
 
-const activeMenu = ref('monitor')
+// 导入各层组件
+import CollectionSensor from './views/collection/CollectionSensor.vue'
+import CollectionDocument from './views/collection/CollectionDocument.vue'
+import ComputationSync from './views/computation/ComputationSync.vue'
+import ComputationFusion from './views/computation/ComputationFusion.vue'
+import ComputationFeature from './views/computation/ComputationFeature.vue'
+import ComputationKnowledge from './views/computation/ComputationKnowledge.vue'
+import StorageTimeseries from './views/storage/StorageTimeseries.vue'
+import StorageGraph from './views/storage/StorageGraph.vue'
+import ServiceQuery from './views/service/ServiceQuery.vue'
+import ServiceVisualization from './views/service/ServiceVisualization.vue'
+
+const activeMenu = ref('')
 
 const handleMenuSelect = (index) => {
   activeMenu.value = index
@@ -59,16 +178,18 @@ const handleMenuSelect = (index) => {
 </script>
 
 <style scoped>
-.app-container {
-  height: 100vh;
+.phm-platform {
+  min-height: 100vh;
+  background: #f5f7fa;
 }
 
-.app-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+.platform-header {
+  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
   color: white;
   display: flex;
   align-items: center;
   padding: 0 20px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
 }
 
 .header-content {
@@ -77,30 +198,52 @@ const handleMenuSelect = (index) => {
   gap: 15px;
 }
 
-.app-title {
+.header-content h1 {
   margin: 0;
   font-size: 24px;
-  font-weight: bold;
+  font-weight: 600;
 }
 
-.app-subtitle {
+.subtitle {
   font-size: 14px;
   opacity: 0.9;
 }
 
-.app-sidebar {
-  background-color: #f5f7fa;
-  border-right: 1px solid #e4e7ed;
+.main-container {
+  height: calc(100vh - 60px);
 }
 
-.sidebar-menu {
-  height: 100%;
+.sidebar {
+  background: white;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.05);
+}
+
+.layer-menu {
   border-right: none;
 }
 
-.app-main {
-  background-color: #fff;
+.content-area {
   padding: 20px;
   overflow-y: auto;
+}
+
+.welcome-page {
+  padding: 40px 0;
+}
+
+.layer-intro {
+  margin-top: 40px;
+  padding: 0 20px;
+}
+
+.layer-intro h4 {
+  margin: 0 0 10px 0;
+  color: #303133;
+}
+
+.layer-intro p {
+  margin: 0;
+  color: #909399;
+  font-size: 14px;
 }
 </style>

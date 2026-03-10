@@ -43,6 +43,24 @@ services:
       timeout: 5s
       retries: 5
 
+  # pgAdmin (PostgreSQL 管理界面)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: phm-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@phm.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "8081:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - phm-network
+    restart: unless-stopped
+    depends_on:
+      - postgres
+
 networks:
   phm-network:
     driver: bridge
@@ -51,3 +69,4 @@ volumes:
   postgres_data:
   neo4j_data:
   neo4j_logs:
+  pgadmin_data:

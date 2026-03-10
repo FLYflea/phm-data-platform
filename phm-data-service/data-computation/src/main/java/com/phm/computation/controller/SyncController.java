@@ -8,7 +8,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 
 /**
@@ -234,7 +236,15 @@ public class SyncController {
             
             Object timestamp = map.get("timestamp");
             if (timestamp instanceof String) {
-                data.setTimestamp(LocalDateTime.parse((String) timestamp));
+                // 解析 ISO 格式时间字符串 (2026-03-05T10:00:00Z)
+                String tsStr = (String) timestamp;
+                try {
+                    Instant instant = Instant.parse(tsStr);
+                    data.setTimestamp(LocalDateTime.ofInstant(instant, ZoneId.systemDefault()));
+                } catch (Exception e) {
+                    // 尝试直接解析 LocalDateTime
+                    data.setTimestamp(LocalDateTime.parse(tsStr.replace("Z", "")));
+                }
             }
             
             result.add(data);

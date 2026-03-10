@@ -53,8 +53,8 @@ public class UnifiedQueryController {
         String queryUrl = UriComponentsBuilder
                 .fromHttpUrl(storageServiceUrl + "/storage/timeseries/query")
                 .queryParam("deviceId", request.getDeviceId())
-                .queryParam("start", request.getStartTime().toString())
-                .queryParam("end", request.getEndTime().toString())
+                .queryParam("start", request.getStartTime())
+                .queryParam("end", request.getEndTime())
                 .toUriString();
         
         log.info("转发到存储层: {}", queryUrl);
@@ -92,8 +92,8 @@ public class UnifiedQueryController {
         String queryUrl = UriComponentsBuilder
                 .fromHttpUrl(storageServiceUrl + "/storage/timeseries/query")
                 .queryParam("deviceId", request.getDeviceId())
-                .queryParam("start", request.getStartTime().toString())
-                .queryParam("end", request.getEndTime().toString())
+                .queryParam("start", request.getStartTime())
+                .queryParam("end", request.getEndTime())
                 .toUriString();
         
         try {
@@ -153,7 +153,7 @@ public class UnifiedQueryController {
     @Data
     public static class QueryRequest {
         private String deviceId;
-        private Instant startTime;
-        private Instant endTime;
+        private String startTime;
+        private String endTime;
     }
 }

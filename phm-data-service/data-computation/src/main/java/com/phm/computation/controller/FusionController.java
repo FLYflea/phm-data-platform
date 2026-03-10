@@ -66,10 +66,17 @@ public class FusionController {
             }
             
             // 解析参数
-            int kNeighbors = request.getOrDefault("kNeighbors", 2) instanceof Integer ? 
-                    (Integer) request.get("kNeighbors") : 2;
-            long expectedIntervalMs = request.getOrDefault("expectedIntervalMs", 1000L) instanceof Number ?
-                    ((Number) request.get("expectedIntervalMs")).longValue() : 1000L;
+            int kNeighbors = 2;
+            Object kNeighborsObj = request.get("kNeighbors");
+            if (kNeighborsObj instanceof Number) {
+                kNeighbors = ((Number) kNeighborsObj).intValue();
+            }
+            
+            long expectedIntervalMs = 1000L;
+            Object intervalObj = request.get("expectedIntervalMs");
+            if (intervalObj instanceof Number) {
+                expectedIntervalMs = ((Number) intervalObj).longValue();
+            }
             
             // 转换为SensorData
             List<SensorData> rawData = convertToSensorData(rawDataMaps);
@@ -393,7 +400,13 @@ public class FusionController {
             
             Object timestamp = map.get("timestamp");
             if (timestamp instanceof String) {
-                data.setTimestamp(java.time.LocalDateTime.parse((String) timestamp));
+                String tsStr = (String) timestamp;
+                try {
+                    java.time.Instant instant = java.time.Instant.parse(tsStr);
+                    data.setTimestamp(java.time.LocalDateTime.ofInstant(instant, java.time.ZoneId.systemDefault()));
+                } catch (Exception e) {
+                    data.setTimestamp(java.time.LocalDateTime.parse(tsStr.replace("Z", "")));
+                }
             }
             
             result.add(data);

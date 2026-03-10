@@ -1,7 +1,6 @@
 D:\1\PHM-Platform\phm-data-service\data-service\src\main\java\com\phm\service\config\RestTemplateConfig.java
 D:\1\PHM-Platform\phm-data-service\data-service\src\main\java\com\phm\service\controller\AnalysisController.java
 D:\1\PHM-Platform\phm-data-service\data-service\src\main\java\com\phm\service\controller\DistributeController.java
-D:\1\PHM-Platform\phm-data-service\data-service\src\main\java\com\phm\service\controller\QueryController.java
 D:\1\PHM-Platform\phm-data-service\data-service\src\main\java\com\phm\service\controller\StreamController.java
 D:\1\PHM-Platform\phm-data-service\data-service\src\main\java\com\phm\service\controller\UnifiedQueryController.java
 D:\1\PHM-Platform\phm-data-service\data-service\src\main\java\com\phm\service\controller\VisualizationController.java

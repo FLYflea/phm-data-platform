@@ -52,16 +52,31 @@ public class StorageController {
     // ==================== P0: 时序数据接口 ====================
     
     /**
-     * P0: 单条保存传感器时序数据
+     * P0: 单条保存传感器时序数据（支持特征数据）
      * 
-     * @param data 传感器数据
+     * 接收格式: {
+     *   "deviceId": "EQ-001",
+     *   "sensorType": "vibration",
+     *   "timestamp": "2024-03-15T10:30:00Z",
+     *   "value": 15.5,
+     *   "features": { "mean": 12.3, "std": 2.1, ... },  // 可选
+     *   "mean": 12.3,  // 可选，展开的特征
+     *   ...
+     * }
+     * 
+     * @param dataMap 传感器数据Map（包含可选特征）
      * @return 统一响应格式 { "id": xxx, "status": "success" }
      */
     @PostMapping("/timeseries/save")
-    public Map<String, Object> saveSingle(@RequestBody SensorTimeSeries data) {
-        log.info("P0保存单条传感器数据: deviceId={}, sensorType={}, timestamp={}", 
-                data.getDeviceId(), data.getSensorType(), data.getTimestamp());
+    public Map<String, Object> saveSingle(@RequestBody Map<String, Object> dataMap) {
+        String deviceId = (String) dataMap.get("deviceId");
+        String sensorType = (String) dataMap.get("sensorType");
+        log.info("P0保存单条传感器数据: deviceId={}, sensorType={}", deviceId, sensorType);
         
+        // 转换为 SensorTimeSeries 实体
+        SensorTimeSeries data = convertToEntity(dataMap);
+        
+        // 保存到数据库
         SensorTimeSeries saved = timeSeriesService.save(data);
         
         Map<String, Object> response = new HashMap<>();
@@ -70,8 +85,97 @@ public class StorageController {
         response.put("deviceId", saved.getDeviceId());
         response.put("timestamp", saved.getTimestamp());
         
+        // 如果有特征，也返回特征信息
+        if (dataMap.containsKey("features")) {
+            response.put("features", dataMap.get("features"));
+        }
+        
         log.info("P0单条数据保存成功: id={}", saved.getId());
         return response;
+    }
+    
+    /**
+     * 将 Map 转换为 SensorTimeSeries 实体
+     * 将特征数据存入 metadata 字段（JSON格式）
+     */
+    private SensorTimeSeries convertToEntity(Map<String, Object> dataMap) {
+        SensorTimeSeries entity = new SensorTimeSeries();
+        entity.setDeviceId((String) dataMap.get("deviceId"));
+        entity.setSensorType((String) dataMap.get("sensorType"));
+        
+        // 处理时间戳
+        Object timestamp = dataMap.get("timestamp");
+        if (timestamp instanceof String) {
+            entity.setTimestamp(Instant.parse((String) timestamp));
+        }
+        
+        // 处理数值
+        Object value = dataMap.get("value");
+        if (value instanceof Number) {
+            entity.setValue(((Number) value).doubleValue());
+        }
+        
+        // 处理特征数据 - 存入 metadata（JSON格式）
+        Map<String, Object> metadata = new HashMap<>();
+        
+        // 提取特征字段
+        String[] featureFields = {"mean", "std", "rms", "peak", "kurtosis", "skewness", "crestFactor"};
+        for (String field : featureFields) {
+            if (dataMap.containsKey(field)) {
+                metadata.put(field, dataMap.get(field));
+            }
+        }
+        
+        // 如果有 features Map，也合并进去
+        @SuppressWarnings("unchecked")
+        Map<String, Object> features = (Map<String, Object>) dataMap.get("features");
+        if (features != null && !features.isEmpty()) {
+            metadata.putAll(features);
+        }
+        
+        // 将 metadata 转为 JSON 字符串存入
+        if (!metadata.isEmpty()) {
+            try {
+                String metadataJson = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(metadata);
+                entity.setMetadata(metadataJson);
+            } catch (Exception e) {
+                log.warn("特征数据序列化失败: {}", e.getMessage());
+            }
+        }
+        
+        return entity;
+    }
+    
+    /**
+     * 将 SensorTimeSeries 实体转换为 Map，并解析 metadata 中的特征
+     */
+    private Map<String, Object> convertToMapWithFeatures(SensorTimeSeries entity) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", entity.getId());
+        map.put("deviceId", entity.getDeviceId());
+        map.put("sensorType", entity.getSensorType());
+        map.put("timestamp", entity.getTimestamp());
+        map.put("value", entity.getValue());
+        map.put("createdAt", entity.getCreatedAt());
+        map.put("updatedAt", entity.getUpdatedAt());
+        
+        // 解析 metadata 中的特征数据
+        String metadata = entity.getMetadata();
+        if (metadata != null && !metadata.isEmpty()) {
+            try {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> features = new com.fasterxml.jackson.databind.ObjectMapper()
+                        .readValue(metadata, Map.class);
+                map.put("features", features);
+                // 同时展开特征字段到顶层，便于前端访问
+                map.putAll(features);
+            } catch (Exception e) {
+                log.warn("解析特征数据失败: {}", e.getMessage());
+                map.put("metadata", metadata);
+            }
+        }
+        
+        return map;
     }
     
     /**
@@ -120,8 +224,13 @@ public class StorageController {
             result = timeSeriesService.queryByTimeRange(deviceId, start, end);
         }
         
+        // 将实体转换为Map，并解析metadata中的特征
+        List<Map<String, Object>> dataList = result.stream()
+                .map(this::convertToMapWithFeatures)
+                .toList();
+        
         Map<String, Object> response = new HashMap<>();
-        response.put("data", result);
+        response.put("data", dataList);
         response.put("count", result.size());
         response.put("deviceId", deviceId);
         response.put("status", "success");

@@ -8,13 +8,6 @@ spring:
   cloud:
     gateway:
       routes:
-        - id: test-route
-          uri: http://httpbin.org
-          predicates:
-            - Path=/test/**
-          filters:
-            - StripPrefix=1
-        
         # 数据采集服务路由
         - id: collection-route
           uri: http://localhost:8101
@@ -23,30 +16,52 @@ spring:
           filters:
             - StripPrefix=2
         
-        # 数据计算服务路由
+        # 数据计算服务路由 - 健康检查
+        # /api/computation/health → /health (StripPrefix=2)
+        - id: computation-health-route
+          uri: http://localhost:8102
+          predicates:
+            - Path=/api/computation/health
+          filters:
+            - StripPrefix=2
+        
+        # 数据计算服务路由 - 业务接口
+        # /api/computation/fusion/pda → /computation/fusion/pda (StripPrefix=1)
         - id: computation-route
           uri: http://localhost:8102
           predicates:
             - Path=/api/computation/**
           filters:
+            - StripPrefix=1
+        
+        # 数据存储服务路由（内部服务，但开放给前端用于测试）
+        # 注意：生产环境应该禁用此路由
+        # /api/storage/graph/equipment → /storage/graph/equipment (StripPrefix=1)
+        - id: storage-route
+          uri: http://localhost:8103
+          predicates:
+            - Path=/api/storage/**
+          filters:
+            - StripPrefix=1
+        
+        # 数据服务层路由 - Actuator 健康检查
+        # /api/service/actuator/health → /actuator/health (StripPrefix=2)
+        - id: service-actuator-route
+          uri: http://localhost:8104
+          predicates:
+            - Path=/api/service/actuator/**
+          filters:
             - StripPrefix=2
         
-        # 数据存储服务路由（已改为内部调用，不对外暴露）
-        # 只有 computation(8102) 和 service(8104) 可以访问 storage
-        # - id: storage-route
-        #   uri: http://localhost:8103
-        #   predicates:
-        #     - Path=/api/storage/**
-        #   filters:
-        #     - StripPrefix=2
-        
-        # 数据服务层路由
+        # 数据服务层路由 - 业务接口
+        # /api/service/query/raw → /service/query/raw (StripPrefix=1)
         - id: service-route
           uri: http://localhost:8104
           predicates:
             - Path=/api/service/**
+            - Method=GET,POST,PUT,DELETE
           filters:
-            - StripPrefix=2
+            - StripPrefix=1
 
 # Actuator 健康检查配置
 management:

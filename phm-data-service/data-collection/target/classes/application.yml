@@ -10,11 +10,6 @@ computation:
   service:
     url: http://localhost:8102
 
-# [保留但不再直接使用] 数据存储服务配置
-storage:
-  service:
-    url: http://localhost:8103
-
 # 日志配置
 logging:
   level:

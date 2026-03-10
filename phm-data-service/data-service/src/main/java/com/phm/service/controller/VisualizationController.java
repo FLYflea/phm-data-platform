@@ -40,10 +40,10 @@ public class VisualizationController {
      */
     @GetMapping("/timeseries")
     public Map<String, Object> getTimeseriesChart(
-            @RequestParam String deviceId,
-            @RequestParam String sensorType,
-            @RequestParam String start,
-            @RequestParam String end) {
+            @RequestParam(name = "deviceId") String deviceId,
+            @RequestParam(name = "sensorType") String sensorType,
+            @RequestParam(name = "start") String start,
+            @RequestParam(name = "end") String end) {
 
         log.info("P1获取时序图表: deviceId={}, sensorType={}", deviceId, sensorType);
 

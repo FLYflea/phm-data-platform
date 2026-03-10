@@ -15,6 +15,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 
 /**
@@ -94,7 +95,7 @@ public class PipelineController {
 
             // ========== Step 4: 保存到存储层 ==========
             log.info("Step 4: 保存处理结果到存储层");
-            List<Map<String, Object>> savedResults = saveToStorage(syncedData, deviceId, sensorType);
+            List<Map<String, Object>> savedResults = saveToStorage(syncedData, deviceId, sensorType, timeDomainFeatures);
             log.info("存储完成: {} 条数据已保存", savedResults.size());
 
             // 构建响应
@@ -141,15 +142,33 @@ public class PipelineController {
             // 时间同步
             List<SensorData> rawData = convertToSensorData(rawDataMaps);
             List<SensorData> syncedData = timeSyncService.syncByTimestamp(rawData);
+            
+            // 特征提取（简化流水线也提取基本特征）
+            List<Double> values = syncedData.stream()
+                    .map(SensorData::getValue)
+                    .filter(v -> v != null)
+                    .toList();
+            log.info("准备提取特征，数据点数: {}, values={}", values.size(), values);
+            Map<String, Double> features = featureEngineeringService.extractTimeDomain(values);
+            log.info("简化流水线特征提取完成: {} 个特征", features.size());
+            
+            // 确保 features 不是空 Map
+            if (features == null || features.isEmpty()) {
+                features = new HashMap<>();
+                features.put("mean", values.stream().mapToDouble(Double::doubleValue).average().orElse(0.0));
+                log.info("特征为空，手动计算均值: {}", features.get("mean"));
+            }
 
-            // 保存到存储层
-            List<Map<String, Object>> savedResults = saveToStorage(syncedData, deviceId, sensorType);
+            // 保存到存储层（包含特征）
+            List<Map<String, Object>> savedResults = saveToStorage(syncedData, deviceId, sensorType, features);
 
             long processingTime = System.currentTimeMillis() - startTime;
             Map<String, Object> result = new HashMap<>();
             result.put("deviceId", deviceId);
             result.put("inputCount", rawData.size());
             result.put("savedCount", savedResults.size());
+            result.put("savedResults", savedResults);  // 调试：返回存储层响应
+            result.put("features", features);  // 返回提取的特征
             result.put("processingTimeMs", processingTime);
 
             return ResponseEntity.ok(buildSuccessResponse(result, "简化流水线处理完成"));
@@ -163,9 +182,9 @@ public class PipelineController {
     // ==================== 私有方法 ====================
 
     /**
-     * 将同步后的数据保存到存储层
+     * 将同步后的数据保存到存储层（包含特征）
      */
-    private List<Map<String, Object>> saveToStorage(List<?> syncedData, String deviceId, String sensorType) {
+    private List<Map<String, Object>> saveToStorage(List<?> syncedData, String deviceId, String sensorType, Map<String, Double> features) {
         List<Map<String, Object>> savedResults = new ArrayList<>();
         String saveUrl = storageServiceUrl + "/storage/timeseries/save";
 
@@ -190,11 +209,26 @@ public class PipelineController {
                     storageData.put("interpolated", false);
                 }
 
+                // 添加特征数据到存储（如果有）
+                if (features != null && !features.isEmpty()) {
+                    storageData.put("features", features);
+                    // 同时展开主要特征作为独立字段，便于查询
+                    storageData.put("mean", features.get("mean"));
+                    storageData.put("std", features.get("std"));
+                    storageData.put("rms", features.get("rms"));
+                    storageData.put("peak", features.get("peak"));
+                    storageData.put("kurtosis", features.get("kurtosis"));
+                }
+                
                 @SuppressWarnings("unchecked")
                 Map<String, Object> response = restTemplate.postForObject(saveUrl, storageData, Map.class);
+                log.info("存储层返回: {}", response);
                 
                 if (response != null && "success".equals(response.get("status"))) {
+                    log.info("数据保存成功，添加到结果");
                     savedResults.add(response);
+                } else {
+                    log.warn("数据保存失败或响应异常: {}", response);
                 }
             } catch (Exception e) {
                 log.warn("保存单条数据失败: {}", e.getMessage());
@@ -222,7 +256,13 @@ public class PipelineController {
             
             Object timestamp = map.get("timestamp");
             if (timestamp instanceof String) {
-                data.setTimestamp(LocalDateTime.parse((String) timestamp));
+                String tsStr = (String) timestamp;
+                try {
+                    Instant instant = Instant.parse(tsStr);
+                    data.setTimestamp(LocalDateTime.ofInstant(instant, ZoneId.systemDefault()));
+                } catch (Exception e) {
+                    data.setTimestamp(LocalDateTime.parse(tsStr.replace("Z", "")));
+                }
             }
             
             result.add(data);

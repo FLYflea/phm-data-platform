@@ -1,9 +1,21 @@
+/**
+ * API 请求封装 - 前后端拉通核心配置
+ * 
+ * 四层架构API路径：
+ * - 采集层: /api/collection/**  → 端口8101
+ * - 计算层: /api/computation/** → 端口8102
+ * - 存储层: /api/storage/**     → 端口8103 (内部服务，不直接暴露)
+ * - 服务层: /api/service/**     → 端口8104
+ * 
+ * 所有请求通过 Gateway (8080) 统一路由
+ */
+
 import axios from 'axios'
 
-// 创建 axios 实例，指向 Gateway 服务 localhost:8080
+// 创建 axios 实例
 const request = axios.create({
   baseURL: '/api',
-  timeout: 10000,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json'
   }
@@ -12,12 +24,11 @@ const request = axios.create({
 // 请求拦截器
 request.interceptors.request.use(
   (config) => {
-    // 可以在这里添加 token 等认证信息
-    console.log('Request:', config.method.toUpperCase(), config.url)
+    console.log(`[Request] ${config.method.toUpperCase()} ${config.url}`)
     return config
   },
   (error) => {
-    console.error('Request Error:', error)
+    console.error('[Request Error]', error)
     return Promise.reject(error)
   }
 )
@@ -26,69 +37,70 @@ request.interceptors.request.use(
 request.interceptors.response.use(
   (response) => {
     const data = response.data
-    if (data.status === 'success' || data.status === 'UP') {
+    console.log(`[Response] ${response.config.url}:`, data)
+    
+    // 统一响应格式处理
+    const isSuccess = data.status === 'success' || 
+                      data.status === 'UP' ||
+                      (data.data && data.data.status === 'success')
+    
+    if (isSuccess) {
       return data
     }
     return Promise.reject(new Error(data.message || '请求失败'))
   },
   (error) => {
-    console.error('Response Error:', error.message)
+    console.error('[Response Error]', error.message)
     return Promise.reject(error)
   }
 )
 
-// ==================== 数据采集 API ====================
+// ==================== 采集层 API ====================
 export const collectionApi = {
-  // 发送传感器数据
-  sendSensorData: (data) => request.post('/collect/sensor', data),
-  // 批量发送传感器数据
-  sendBatchSensorData: (dataList) => request.post('/collect/sensor/batch', dataList)
+  // 单条传感器数据
+  sendSensorData: (data) => request.post('/collection/sensor', data),
+  // 批量传感器数据
+  sendBatchSensorData: (data) => request.post('/collection/sensor/batch', data),
+  // 图像解析
+  parseImage: (formData) => request.post('/collection/document/image', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  // 文本解析
+  parseText: (data) => request.post('/collection/document/text', data)
 }
 
-// ==================== 数据存储 API ====================
-export const storageApi = {
-  // 保存时序数据
-  saveTimeSeries: (data) => request.post('/storage/timeseries/save', data),
-  // 批量保存时序数据
-  saveBatchTimeSeries: (dataList) => request.post('/storage/timeseries/batch', dataList),
-  // 查询时序数据
-  queryTimeSeries: (params) => request.get('/storage/timeseries/query', { params }),
-  // 聚合统计
-  aggregateTimeSeries: (params) => request.get('/storage/timeseries/aggregate', { params }),
-  // 保存设备节点
-  saveEquipment: (data) => request.post('/storage/graph/equipment', data),
-  // 保存组件节点
-  saveComponent: (equipmentId, data) => request.post('/storage/graph/component', data, { params: { equipmentId } }),
-  // 查询设备及其组件
-  getEquipmentWithComponents: (equipmentId) => request.get(`/storage/graph/equipment/${equipmentId}`),
-  // 保存文档
-  saveDocument: (data) => request.post('/storage/document', data),
-  // 搜索文档
-  searchDocuments: (keyword) => request.get('/storage/document/search', { params: { keyword } })
-}
-
-// ==================== 数据计算 API ====================
+// ==================== 计算层 API ====================
 export const computationApi = {
-  // 数据同步
-  syncData: (data) => request.post('/compute/sync', data),
+  // 时间同步
+  timeSync: (data) => request.post('/computation/sync/uncertainty', data),
   // 数据融合
-  fuseData: (data) => request.post('/compute/fuse', data)
+  dataFusion: (data) => request.post('/computation/fusion/probabilistic', data),
+  // 特征提取
+  extractFeatures: (data) => request.post('/computation/feature/time-domain', data),
+  // 知识图谱构建
+  buildKnowledgeGraph: (data) => request.post('/computation/knowledge/build', data),
+  // 维修时间抽取
+  extractMaintenanceTime: (text) => request.post('/computation/maintenance/extract-time', { text })
 }
 
-// ==================== 数据服务 API ====================
+// ==================== 存储层 API (内部调用) ====================
+export const storageApi = {
+  // 时序数据查询
+  queryTimeSeries: (params) => request.get('/storage/timeseries/query', { params }),
+  // 知识图谱查询
+  queryKnowledgeGraph: (equipmentId) => request.get(`/storage/graph/equipment/${equipmentId}/components`)
+}
+
+// ==================== 服务层 API ====================
 export const serviceApi = {
-  // 统一查询
-  unifiedQuery: (params) => request.get('/service/query', { params }),
-  // 获取可视化数据
-  getVisualizationData: (params) => request.get('/service/visualization', { params })
-}
-
-// ==================== 健康检查 API ====================
-export const healthApi = {
-  // Gateway 健康检查
-  checkGateway: () => request.get('/actuator/health'),
-  // 各服务健康检查
-  checkService: (service) => request.get(`/${service}/health`)
+  // 原始数据查询
+  queryRawData: (data) => request.post('/service/query/raw', data),
+  // 处理后数据查询
+  queryProcessedData: (data) => request.post('/service/query/processed', data),
+  // 可视化数据
+  getVisualizationData: (params) => request.get('/service/visualization/timeseries', { params }),
+  // 聚合统计
+  getAggregation: (params) => request.get('/service/analysis/aggregate', { params })
 }
 
 export default request

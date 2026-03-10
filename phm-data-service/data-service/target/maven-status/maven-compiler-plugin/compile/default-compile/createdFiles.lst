@@ -1,7 +1,6 @@
 com\phm\service\controller\UnifiedQueryController$QueryRequest.class
 com\phm\service\controller\DistributeController.class
 com\phm\service\controller\AnalysisController.class
-com\phm\service\controller\QueryController.class
 com\phm\service\controller\StreamController.class
 com\phm\service\DataServiceApplication.class
 com\phm\service\controller\UnifiedQueryController.class
