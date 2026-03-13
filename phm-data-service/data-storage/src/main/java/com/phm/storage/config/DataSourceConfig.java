@@ -1,12 +1,10 @@
 package com.phm.storage.config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
@@ -21,6 +19,7 @@ import java.util.Map;
  * 多数据源配置
  * 配置PostgreSQL（时序数据）和MySQL（文本数据）
  */
+@Slf4j
 @Configuration
 public class DataSourceConfig {
 
@@ -29,12 +28,18 @@ public class DataSourceConfig {
      */
     @Primary
     @Bean(name = "primaryDataSource")
-    @ConfigurationProperties(prefix = "spring.datasource.primary.hikari")
     public DataSource primaryDataSource() {
-        HikariDataSource dataSource = DataSourceBuilder.create()
-                .type(HikariDataSource.class)
-                .build();
+        log.info("Creating primary DataSource for PostgreSQL...");
+        
+        // 使用PostgreSQL原生DriverManagerDataSource
+        org.springframework.jdbc.datasource.DriverManagerDataSource dataSource = 
+            new org.springframework.jdbc.datasource.DriverManagerDataSource();
         dataSource.setDriverClassName("org.postgresql.Driver");
+        dataSource.setUrl("jdbc:postgresql://127.0.0.1:5432/phm_db");
+        dataSource.setUsername("phm");
+        dataSource.setPassword("phm123");
+        
+        log.info("DataSource configured with URL: {}, Username: {}", dataSource.getUrl(), dataSource.getUsername());
         return dataSource;
     }
 
@@ -42,12 +47,12 @@ public class DataSourceConfig {
      * 第二数据源：MySQL - 存储文本数据
      */
     @Bean(name = "secondaryDataSource")
-    @ConfigurationProperties(prefix = "spring.datasource.secondary.hikari")
     public DataSource secondaryDataSource() {
-        HikariDataSource dataSource = DataSourceBuilder.create()
-                .type(HikariDataSource.class)
-                .build();
+        HikariDataSource dataSource = new HikariDataSource();
         dataSource.setDriverClassName("com.mysql.cj.jdbc.Driver");
+        dataSource.setJdbcUrl("jdbc:mysql://localhost:3306/phm_text?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai");
+        dataSource.setUsername("phm");
+        dataSource.setPassword("phm123");
         return dataSource;
     }
 

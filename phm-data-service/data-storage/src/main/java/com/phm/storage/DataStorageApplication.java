@@ -2,6 +2,7 @@ package com.phm.storage;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.data.neo4j.repository.config.EnableNeo4jRepositories;
 
@@ -17,7 +18,7 @@ import org.springframework.data.neo4j.repository.config.EnableNeo4jRepositories;
  * - 考虑添加数据库连接池监控
  * - 考虑添加分布式事务支持（如需要）
  */
-@SpringBootApplication
+@SpringBootApplication(exclude = {DataSourceAutoConfiguration.class})
 @EnableJpaRepositories(basePackages = "com.phm.storage.repository.timeseries")
 @EnableNeo4jRepositories(basePackages = "com.phm.storage.repository.graph")
 public class DataStorageApplication {

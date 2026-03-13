@@ -11,5 +11,6 @@ com\phm\storage\service\DocumentService.class
 com\phm\storage\controller\StorageController.class
 com\phm\storage\entity\graph\ComponentNode.class
 com\phm\storage\repository\graph\EquipmentRepository.class
+com\phm\storage\config\DataSourceConfig.class
 com\phm\storage\DataStorageApplication.class
 com\phm\storage\controller\FmecaController.class
