@@ -61,6 +61,29 @@ services:
     depends_on:
       - postgres
 
+  # MySQL (文本数据存储)
+  mysql:
+    image: mysql:8.0
+    container_name: phm-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: phm_text
+      MYSQL_USER: phm
+      MYSQL_PASSWORD: phm123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - phm-network
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 networks:
   phm-network:
     driver: bridge
@@ -70,3 +93,4 @@ volumes:
   neo4j_data:
   neo4j_logs:
   pgadmin_data:
+  mysql_data:

@@ -4,22 +4,33 @@ server:
 spring:
   application:
     name: data-storage
-  
-  # PostgreSQL 数据源配置（时序数据存储）
-  # TODO: 待TimescaleDB Hypertable优化 - 将sensor_timeseries表转换为超表以提升时序查询性能
+
+  # 多数据源配置
   datasource:
-    url: jdbc:postgresql://localhost:5432/phm_db
-    username: phm
-    password: phm123
-    driver-class-name: org.postgresql.Driver
-    hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
-      connection-timeout: 30000
-      idle-timeout: 600000
-      max-lifetime: 1800000
-  
-  # JPA 配置
+    # 主数据源：PostgreSQL/TimescaleDB（时序数据）
+    primary:
+      hikari:
+        jdbc-url: jdbc:postgresql://localhost:5432/phm_db
+        username: phm
+        password: phm123
+        driver-class-name: org.postgresql.Driver
+        maximum-pool-size: 20
+        minimum-idle: 5
+        connection-timeout: 30000
+        idle-timeout: 600000
+        max-lifetime: 1800000
+
+    # 第二数据源：MySQL（文本数据）
+    secondary:
+      hikari:
+        jdbc-url: jdbc:mysql://localhost:3306/phm_text?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+        username: phm
+        password: phm123
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        maximum-pool-size: 10
+        minimum-idle: 3
+
+  # JPA 配置（主要用于PostgreSQL）
   jpa:
     hibernate:
       ddl-auto: update
@@ -32,10 +43,8 @@ spring:
           batch_size: 1000
         order_inserts: true
         order_updates: true
-        generate_statistics: false
-  
-  # Neo4j 配置（知识图谱存储）
-  # TODO: 待Neo4j索引优化 - 为EquipmentNode和ComponentNode添加复合索引以提升图谱查询性能
+
+  # Neo4j 配置（图数据）
   neo4j:
     uri: bolt://localhost:7687
     authentication:
@@ -47,4 +56,4 @@ logging:
   level:
     com.phm.storage: INFO
     org.hibernate.SQL: WARN
-    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.springframework.data.neo4j: INFO
