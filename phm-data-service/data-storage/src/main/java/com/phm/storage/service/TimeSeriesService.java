@@ -42,7 +42,7 @@ public class TimeSeriesService {
      * @param data 传感器时序数据
      * @return 保存后的数据（包含生成的ID）
      */
-    @Transactional
+    @Transactional("transactionManager")
     public SensorTimeSeries save(SensorTimeSeries data) {
         if (data == null) {
             log.warn("保存失败：数据为空");

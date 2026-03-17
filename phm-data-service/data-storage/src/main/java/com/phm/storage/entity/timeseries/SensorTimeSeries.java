@@ -19,12 +19,7 @@ import java.time.Instant;
  */
 @Data
 @Entity
-@Table(name = "sensor_timeseries", 
-       indexes = {
-           @Index(name = "idx_device_time", columnList = "deviceId, timestamp"),
-           @Index(name = "idx_sensor_device_timestamp", columnList = "deviceId, timestamp"),
-           @Index(name = "idx_sensor_type_timestamp", columnList = "sensorType, timestamp")
-       })
+@Table(name = "sensor_timeseries")
 public class SensorTimeSeries {
     
     @Id
@@ -54,7 +49,7 @@ public class SensorTimeSeries {
     /**
      * 传感器数值
      */
-    @Column(name = "value", nullable = false)
+    @Column(name = "sensor_value", nullable = false)
     private Double value;
     
     /**

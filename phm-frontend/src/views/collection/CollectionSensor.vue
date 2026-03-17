@@ -142,7 +142,7 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, watch, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { collectionApi } from '../../api/request'
 
@@ -151,23 +151,49 @@ const batchLoading = ref(false)
 const flowActive = ref(0)
 const lastResponse = ref(null)
 
+// 传感器类型配置
+const sensorConfig = {
+  temperature: { defaultValue: 45.0, unit: '°C', range: [35, 55] },
+  vibration: { defaultValue: 12.5, unit: 'mm/s', range: [5, 20] },
+  pressure: { defaultValue: 101.3, unit: 'kPa', range: [95, 110] },
+  current: { defaultValue: 5.2, unit: 'A', range: [3, 8] }
+}
+
 // 单条数据表单
 const singleForm = reactive({
   deviceId: 'EQ-001',
-  sensorType: 'vibration',
-  value: 12.5,
-  unit: 'mm/s',
+  sensorType: 'temperature',
+  value: 45.0,
+  unit: '°C',
   timestamp: new Date().toISOString().slice(0, 19)
 })
+
+// 监听传感器类型变化，自动更新默认值
+watch(() => singleForm.sensorType, (newType) => {
+  const config = sensorConfig[newType]
+  if (config) {
+    singleForm.value = config.defaultValue
+    singleForm.unit = config.unit
+  }
+}, { immediate: true })
 
 // 批量数据表单
 const batchForm = reactive({
   deviceId: 'EQ-001',
   sensorType: 'temperature',
   count: 10,
-  minValue: 20,
-  maxValue: 80
+  minValue: 35,
+  maxValue: 55
 })
+
+// 监听批量表单传感器类型变化
+watch(() => batchForm.sensorType, (newType) => {
+  const config = sensorConfig[newType]
+  if (config) {
+    batchForm.minValue = config.range[0]
+    batchForm.maxValue = config.range[1]
+  }
+}, { immediate: true })
 
 // 发送单条数据
 const sendSingleData = async () => {

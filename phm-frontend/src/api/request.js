@@ -73,22 +73,42 @@ export const collectionApi = {
 export const computationApi = {
   // 时间同步
   timeSync: (data) => request.post('/computation/sync/uncertainty', data),
-  // 数据融合
-  dataFusion: (data) => request.post('/computation/fusion/probabilistic', data),
+  // 数据融合 - 修正路径为 /computation/fusion/pda
+  dataFusion: (data) => request.post('/computation/fusion/pda', data),
   // 特征提取
   extractFeatures: (data) => request.post('/computation/feature/time-domain', data),
-  // 知识图谱构建
-  buildKnowledgeGraph: (data) => request.post('/computation/knowledge/build', data),
+  // 知识图谱构建 - 支持图像和文本
+  buildKnowledgeGraphFromImage: (formData) => request.post('/computation/knowledge/build/image', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  buildKnowledgeGraphFromText: (data) => request.post('/computation/knowledge/build/text', data),
   // 维修时间抽取
-  extractMaintenanceTime: (text) => request.post('/computation/maintenance/extract-time', { text })
+  extractMaintenanceTime: (text) => request.post('/computation/maintenance/extract-time', { text }),
+  // 流水线接口
+  runPipeline: (data) => request.post('/computation/pipeline/full', data),
+  runSimplePipeline: (data) => request.post('/computation/pipeline/simple', data)
 }
 
 // ==================== 存储层 API (内部调用) ====================
 export const storageApi = {
   // 时序数据查询
   queryTimeSeries: (params) => request.get('/storage/timeseries/query', { params }),
-  // 知识图谱查询
-  queryKnowledgeGraph: (equipmentId) => request.get(`/storage/graph/equipment/${equipmentId}/components`)
+  // 时序数据聚合统计
+  aggregateTimeSeries: (params) => request.get('/storage/timeseries/aggregate', { params }),
+  // 知识图谱查询 - 设备及其组件
+  queryEquipmentGraph: (equipmentId) => request.get(`/storage/graph/equipment/${equipmentId}`),
+  // 知识图谱查询 - 组件关系路径
+  queryGraphPath: (params) => request.get('/storage/graph/path', { params }),
+  // 保存设备节点
+  saveEquipment: (data) => request.post('/storage/graph/equipment', data),
+  // 保存组件节点
+  saveComponent: (equipmentId, data) => request.post(`/storage/graph/component?equipmentId=${equipmentId}`, data),
+  // 创建组件关系
+  createRelation: (params) => request.post('/storage/graph/relation', {}, { params }),
+  // FMECA故障模式查询
+  queryFailureModes: (equipmentId) => request.get(`/storage/fmeca/failure-mode/equipment/${equipmentId}`),
+  // 保存故障模式
+  saveFailureMode: (data) => request.post('/storage/fmeca/failure-mode', data)
 }
 
 // ==================== 服务层 API ====================
@@ -97,8 +117,8 @@ export const serviceApi = {
   queryRawData: (data) => request.post('/service/query/raw', data),
   // 处理后数据查询
   queryProcessedData: (data) => request.post('/service/query/processed', data),
-  // 可视化数据
-  getVisualizationData: (params) => request.get('/service/visualization/timeseries', { params }),
+  // 可视化数据 - 修正路径为 /service/chart/timeseries
+  getVisualizationData: (params) => request.get('/service/chart/timeseries', { params }),
   // 聚合统计
   getAggregation: (params) => request.get('/service/analysis/aggregate', { params })
 }

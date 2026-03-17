@@ -103,10 +103,44 @@ public class StorageController {
         entity.setDeviceId((String) dataMap.get("deviceId"));
         entity.setSensorType((String) dataMap.get("sensorType"));
         
-        // 处理时间戳
+        log.debug("转换数据: deviceId={}, sensorType={}, timestamp={}, value={}", 
+            dataMap.get("deviceId"), dataMap.get("sensorType"), 
+            dataMap.get("timestamp"), dataMap.get("value"));
+        
+        // 处理时间戳 - 支持多种格式
         Object timestamp = dataMap.get("timestamp");
         if (timestamp instanceof String) {
             entity.setTimestamp(Instant.parse((String) timestamp));
+        } else if (timestamp instanceof Instant) {
+            entity.setTimestamp((Instant) timestamp);
+        } else if (timestamp instanceof java.util.List) {
+            // Jackson 序列化 Instant 为数组格式 [秒, 纳秒]
+            @SuppressWarnings("unchecked")
+            java.util.List<Number> tsList = (java.util.List<Number>) timestamp;
+            if (tsList.size() >= 2) {
+                long seconds = tsList.get(0).longValue();
+                long nanos = tsList.get(1).longValue();
+                entity.setTimestamp(Instant.ofEpochSecond(seconds, nanos));
+            }
+        } else if (timestamp instanceof java.util.Map) {
+            // Jackson 可能序列化为 Map
+            @SuppressWarnings("unchecked")
+            java.util.Map<String, Object> tsMap = (java.util.Map<String, Object>) timestamp;
+            Object epochSecond = tsMap.get("epochSecond");
+            Object nano = tsMap.get("nano");
+            if (epochSecond instanceof Number && nano instanceof Number) {
+                entity.setTimestamp(Instant.ofEpochSecond(
+                    ((Number) epochSecond).longValue(),
+                    ((Number) nano).longValue()));
+            }
+        } else if (timestamp == null) {
+            // 如果没有时间戳，使用当前时间
+            entity.setTimestamp(Instant.now());
+            log.warn("时间戳为空，使用当前时间: {}", entity.getTimestamp());
+        } else {
+            // 未知格式，使用当前时间
+            entity.setTimestamp(Instant.now());
+            log.warn("时间戳格式未知: {}，使用当前时间: {}", timestamp.getClass(), entity.getTimestamp());
         }
         
         // 处理数值
