@@ -8,10 +8,14 @@
       <template #header>图表配置</template>
       <el-form :model="queryForm" inline>
         <el-form-item label="设备ID">
-          <el-input v-model="queryForm.deviceId" placeholder="EQ-001" />
+          <el-select v-model="queryForm.deviceId" placeholder="选择设备" style="width: 150px">
+            <el-option label="设备 EQ-001" value="EQ-001" />
+            <el-option label="设备 EQ-002" value="EQ-002" />
+            <el-option label="设备 EQ-003" value="EQ-003" />
+          </el-select>
         </el-form-item>
         <el-form-item label="传感器类型">
-          <el-select v-model="queryForm.sensorType">
+          <el-select v-model="queryForm.sensorType" style="width: 140px">
             <el-option label="温度" value="temperature" />
             <el-option label="振动" value="vibration" />
             <el-option label="压力" value="pressure" />
@@ -41,44 +45,21 @@
     <el-card v-if="chartData.xAxis?.length > 0" class="chart-card">
       <template #header>
         <div class="card-header">
-          <span>时序数据趋势图</span>
-          <el-tag type="success">{{ chartData.count }} 个数据点</el-tag>
+          <span>时序数据可视化</span>
+          <div class="chart-controls">
+            <el-radio-group v-model="chartType" size="small">
+              <el-radio-button label="line">折线图</el-radio-button>
+              <el-radio-button label="bar">柱状图</el-radio-button>
+              <el-radio-button label="scatter">散点图</el-radio-button>
+              <el-radio-button label="area">面积图</el-radio-button>
+            </el-radio-group>
+            <el-tag type="success" style="margin-left: 15px">{{ chartData.count }} 个数据点</el-tag>
+          </div>
         </div>
       </template>
 
-      <!-- 使用原生HTML/CSS模拟图表 -->
-      <div class="chart-container">
-        <div class="chart-wrapper">
-          <div class="y-axis">
-            <span v-for="n in 5" :key="n" class="y-label">{{ getYLabel(n) }}</span>
-          </div>
-          <div class="chart-area">
-            <div class="grid-lines">
-              <div v-for="n in 5" :key="n" class="grid-line"></div>
-            </div>
-            <svg class="line-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <polyline
-                :points="getLinePoints()"
-                fill="none"
-                stroke="#409eff"
-                stroke-width="0.5"
-              />
-              <circle
-                v-for="(point, index) in getPoints()"
-                :key="index"
-                :cx="point.x"
-                :cy="point.y"
-                r="1"
-                fill="#409eff"
-                class="data-point"
-              />
-            </svg>
-          </div>
-        </div>
-        <div class="x-axis">
-          <span v-for="(label, index) in getXLabels()" :key="index" class="x-label">{{ label }}</span>
-        </div>
-      </div>
+      <!-- ECharts 图表容器 -->
+      <div ref="chartRef" class="chart-container"></div>
 
       <!-- 统计信息 -->
       <div class="stats-section">
@@ -135,14 +116,18 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { TrendCharts, DataLine } from '@element-plus/icons-vue'
 import { serviceApi } from '../../api/request'
+import * as echarts from 'echarts'
 
 const loading = ref(false)
 const hasSearched = ref(false)
 const showAllData = ref(false)
+const chartRef = ref(null)
+const chartType = ref('line')
+let chartInstance = null
 
 const queryForm = reactive({
   deviceId: 'EQ-001',
@@ -172,6 +157,129 @@ const statistics = reactive({
 const displayData = computed(() => {
   if (showAllData.value) return tableData.value
   return tableData.value.slice(0, 10)
+})
+
+// 初始化图表
+const initChart = () => {
+  if (chartRef.value && !chartInstance) {
+    chartInstance = echarts.init(chartRef.value)
+    window.addEventListener('resize', () => {
+      chartInstance?.resize()
+    })
+  }
+}
+
+// 更新图表
+const updateChart = () => {
+  if (!chartInstance || !chartData.value.xAxis?.length) return
+
+  const values = chartData.value.series?.[0]?.data || []
+  const times = chartData.value.xAxis || []
+
+  // 根据图表类型配置
+  const seriesConfig = {
+    line: {
+      type: 'line',
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 6,
+      lineStyle: { width: 2 },
+      itemStyle: { color: '#409eff' },
+      areaStyle: null
+    },
+    bar: {
+      type: 'bar',
+      itemStyle: { 
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: '#409eff' },
+          { offset: 1, color: '#79bbff' }
+        ])
+      },
+      barMaxWidth: 40
+    },
+    scatter: {
+      type: 'scatter',
+      symbolSize: 8,
+      itemStyle: { 
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: '#409eff' },
+          { offset: 1, color: '#79bbff' }
+        ])
+      }
+    },
+    area: {
+      type: 'line',
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 6,
+      lineStyle: { width: 2, color: '#409eff' },
+      itemStyle: { color: '#409eff' },
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: 'rgba(64, 158, 255, 0.5)' },
+          { offset: 1, color: 'rgba(64, 158, 255, 0.1)' }
+        ])
+      }
+    }
+  }
+
+  const option = {
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(50, 50, 50, 0.9)',
+      borderColor: '#333',
+      textStyle: { color: '#fff' },
+      formatter: (params) => {
+        const data = params[0]
+        return `<div style="padding: 5px">
+          <div style="margin-bottom: 5px">${data.name}</div>
+          <div><strong>数值：</strong>${data.value.toFixed(2)}</div>
+        </div>`
+      }
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      top: '10%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: times.map(t => {
+        const date = new Date(t)
+        return `${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`
+      }),
+      boundaryGap: chartType.value === 'bar',
+      axisLine: { lineStyle: { color: '#dcdfe6' } },
+      axisLabel: { color: '#606266', fontSize: 12 },
+      axisTick: { show: false }
+    },
+    yAxis: {
+      type: 'value',
+      axisLine: { show: false },
+      axisLabel: { color: '#909399', fontSize: 12 },
+      splitLine: { lineStyle: { color: '#e4e7ed', type: 'dashed' } },
+      axisTick: { show: false }
+    },
+    series: [{
+      name: '数值',
+      data: values,
+      ...seriesConfig[chartType.value]
+    }],
+    animation: true,
+    animationDuration: 800,
+    animationEasing: 'cubicOut'
+  }
+
+  chartInstance.setOption(option, true)
+}
+
+// 监听图表类型变化
+watch(chartType, () => {
+  nextTick(() => {
+    updateChart()
+  })
 })
 
 // 加载图表数据
@@ -218,6 +326,11 @@ const loadChartData = async () => {
       }
 
       ElMessage.success(`加载成功，共 ${res.count} 个数据点`)
+      
+      // 等待 DOM 更新后初始化图表
+      await nextTick()
+      initChart()
+      updateChart()
     } else {
       ElMessage.warning(res.message || '暂无数据')
       chartData.value = { xAxis: [], series: [], count: 0 }
@@ -232,53 +345,6 @@ const loadChartData = async () => {
   }
 }
 
-// 获取Y轴标签
-const getYLabel = (n) => {
-  const max = statistics.max || 100
-  const min = statistics.min || 0
-  const step = (max - min) / 4
-  return (max - (n - 1) * step).toFixed(1)
-}
-
-// 获取X轴标签
-const getXLabels = () => {
-  const labels = []
-  const count = chartData.value.xAxis?.length || 0
-  if (count === 0) return labels
-
-  // 显示5个时间点
-  for (let i = 0; i < 5; i++) {
-    const index = Math.floor(i * (count - 1) / 4)
-    const timestamp = chartData.value.xAxis[index]
-    if (timestamp) {
-      // 简化显示
-      const date = new Date(timestamp)
-      labels.push(`${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`)
-    }
-  }
-  return labels
-}
-
-// 获取折线点坐标
-const getPoints = () => {
-  const values = chartData.value.series?.[0]?.data || []
-  if (values.length === 0) return []
-
-  const max = Math.max(...values)
-  const min = Math.min(...values)
-  const range = max - min || 1
-
-  return values.map((value, index) => ({
-    x: (index / (values.length - 1)) * 100,
-    y: 100 - ((value - min) / range) * 100
-  }))
-}
-
-// 获取折线points字符串
-const getLinePoints = () => {
-  return getPoints().map(p => `${p.x},${p.y}`).join(' ')
-}
-
 // 获取数值样式类
 const getValueClass = (value) => {
   const avg = statistics.avg
@@ -286,6 +352,13 @@ const getValueClass = (value) => {
   if (value < avg * 0.8) return 'value-low'
   return 'value-normal'
 }
+
+// 组件挂载时初始化
+onMounted(() => {
+  if (chartData.value.xAxis?.length > 0) {
+    initChart()
+  }
+})
 </script>
 
 <style scoped>
@@ -310,71 +383,16 @@ const getValueClass = (value) => {
   align-items: center;
 }
 
+.chart-controls {
+  display: flex;
+  align-items: center;
+}
+
 /* 图表样式 */
 .chart-container {
-  padding: 20px;
-}
-
-.chart-wrapper {
-  display: flex;
-  height: 300px;
-}
-
-.y-axis {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  width: 50px;
-  padding-right: 10px;
-  text-align: right;
-  font-size: 12px;
-  color: #909399;
-}
-
-.chart-area {
-  flex: 1;
-  position: relative;
-  border-left: 1px solid #dcdfe6;
-  border-bottom: 1px solid #dcdfe6;
-}
-
-.grid-lines {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-}
-
-.grid-line {
-  height: 25%;
-  border-top: 1px dashed #e4e7ed;
-}
-
-.line-svg {
-  position: absolute;
-  top: 0;
-  left: 0;
   width: 100%;
-  height: 100%;
-}
-
-.data-point {
-  cursor: pointer;
-  transition: r 0.2s;
-}
-
-.data-point:hover {
-  r: 2;
-}
-
-.x-axis {
-  display: flex;
-  justify-content: space-between;
-  margin-left: 50px;
-  padding-top: 10px;
-  font-size: 12px;
-  color: #909399;
+  height: 400px;
+  padding: 10px;
 }
 
 /* 统计信息 */

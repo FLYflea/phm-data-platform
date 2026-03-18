@@ -22,7 +22,7 @@
               </el-select>
             </el-form-item>
             <el-form-item label="传感器类型">
-              <el-select v-model="sourceA.sensorType" style="width: 150px">
+              <el-select v-model="sourceA.sensorType" style="width: 140px">
                 <el-option label="温度" value="temperature" />
                 <el-option label="振动" value="vibration" />
                 <el-option label="压力" value="pressure" />
@@ -65,7 +65,7 @@
               </el-select>
             </el-form-item>
             <el-form-item label="传感器类型">
-              <el-select v-model="sourceB.sensorType" style="width: 150px">
+              <el-select v-model="sourceB.sensorType" style="width: 140px">
                 <el-option label="温度" value="temperature" />
                 <el-option label="振动" value="vibration" />
                 <el-option label="压力" value="pressure" />
