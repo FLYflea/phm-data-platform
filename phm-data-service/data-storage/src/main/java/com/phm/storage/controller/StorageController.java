@@ -110,7 +110,20 @@ public class StorageController {
         // 处理时间戳 - 支持多种格式
         Object timestamp = dataMap.get("timestamp");
         if (timestamp instanceof String) {
-            entity.setTimestamp(Instant.parse((String) timestamp));
+            String tsStr = (String) timestamp;
+            try {
+                entity.setTimestamp(Instant.parse(tsStr));
+            } catch (Exception e) {
+                // 尝试作为 LocalDateTime 解析再转换（无Z标记的情况）
+                try {
+                    java.time.LocalDateTime ldt = java.time.LocalDateTime.parse(tsStr);
+                    entity.setTimestamp(ldt.atZone(java.time.ZoneId.systemDefault()).toInstant());
+                    log.warn("时间戳不含Z标记，按本地时间转换: {}", tsStr);
+                } catch (Exception e2) {
+                    entity.setTimestamp(Instant.now());
+                    log.error("无法解析时间戳字符串: {}，使用当前时间", tsStr);
+                }
+            }
         } else if (timestamp instanceof Instant) {
             entity.setTimestamp((Instant) timestamp);
         } else if (timestamp instanceof java.util.List) {
@@ -141,6 +154,12 @@ public class StorageController {
             // 未知格式，使用当前时间
             entity.setTimestamp(Instant.now());
             log.warn("时间戳格式未知: {}，使用当前时间: {}", timestamp.getClass(), entity.getTimestamp());
+        }
+        
+        // 最终安全检查 - 确保 timestamp 绝不为 null
+        if (entity.getTimestamp() == null) {
+            entity.setTimestamp(Instant.now());
+            log.error("CRITICAL: timestamp仍为null，使用当前时间: {}", entity.getTimestamp());
         }
         
         // 处理数值

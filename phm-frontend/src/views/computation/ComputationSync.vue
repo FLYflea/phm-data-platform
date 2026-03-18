@@ -16,11 +16,15 @@
 
           <el-form :model="form" label-width="120px">
             <el-form-item label="设备ID">
-              <el-input v-model="form.deviceId" placeholder="EQ-001" />
+              <el-select v-model="form.deviceId" placeholder="选择设备" style="width: 150px">
+                <el-option label="设备 EQ-001" value="EQ-001" />
+                <el-option label="设备 EQ-002" value="EQ-002" />
+                <el-option label="设备 EQ-003" value="EQ-003" />
+              </el-select>
             </el-form-item>
 
             <el-form-item label="传感器类型">
-              <el-select v-model="form.sensorType">
+              <el-select v-model="form.sensorType" style="width: 150px">
                 <el-option label="温度" value="temperature" />
                 <el-option label="振动" value="vibration" />
                 <el-option label="压力" value="pressure" />
@@ -35,6 +39,13 @@
                 :rows="4"
                 placeholder="输入数值，用逗号分隔，如: 10.5, 20.3, 15.8, 25.1, 18.7"
               />
+              <div v-if="dataSourceInfo" class="data-source-info">
+                <el-tag type="success" size="small">数据来源</el-tag>
+                <span>设备: {{ dataSourceInfo.deviceId }}</span>
+                <span>类型: {{ dataSourceInfo.sensorType }}</span>
+                <span>已加载: {{ dataSourceInfo.loadedCount }}/{{ dataSourceInfo.totalCount }}条</span>
+                <span>时间范围: {{ dataSourceInfo.oldestTimestamp?.slice(0, 19) }} ~ {{ dataSourceInfo.latestTimestamp?.slice(0, 19) }}</span>
+              </div>
             </el-form-item>
 
             <el-form-item label="同步参数">
@@ -56,6 +67,9 @@
               <el-button type="primary" @click="performSync" :loading="loading">
                 <el-icon><Timer /></el-icon>
                 执行时间同步
+              </el-button>
+              <el-button type="success" @click="loadFromStorage" :loading="loadingFromStorage">
+                从存储层加载
               </el-button>
               <el-button @click="generateSampleData">
                 <el-icon><DataLine /></el-icon>
@@ -155,11 +169,13 @@
 import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Timer, DataLine } from '@element-plus/icons-vue'
-import { computationApi } from '../../api/request'
+import { computationApi, storageApi } from '../../api/request'
 
 const loading = ref(false)
 const result = ref(null)
 const syncedData = ref([])
+const loadingFromStorage = ref(false)
+const dataSourceInfo = ref(null) // 数据来源信息
 
 const form = reactive({
   deviceId: 'EQ-001',
@@ -193,6 +209,59 @@ const generateSampleData = () => {
 
   form.values = values.join(', ')
   ElMessage.success(`已生成 ${count} 个示例数据点`)
+}
+
+// 从存储层加载数据
+const loadFromStorage = async () => {
+  loadingFromStorage.value = true
+  dataSourceInfo.value = null
+  try {
+    const params = {
+      deviceId: form.deviceId,
+      start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      end: new Date().toISOString()
+    }
+    if (form.sensorType) {
+      params.sensorType = form.sensorType
+    }
+    
+    const res = await storageApi.queryTimeSeries(params)
+    let data = res.data || []
+    
+    if (data.length === 0) {
+      ElMessage.warning('未找到数据，请先在采集层录入数据')
+      return
+    }
+    
+    // 限制最多加载50条数据（按时间倒序取最新的）
+    const maxLoad = 50
+    const originalCount = data.length
+    if (data.length > maxLoad) {
+      // 按时间戳排序，取最新的数据
+      data = data.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, maxLoad)
+    }
+    
+    // 记录数据来源信息
+    dataSourceInfo.value = {
+      deviceId: form.deviceId,
+      sensorType: form.sensorType,
+      totalCount: originalCount,
+      loadedCount: data.length,
+      timeRange: `${params.start.slice(0, 19)} ~ ${params.end.slice(0, 19)}`,
+      latestTimestamp: data[0]?.timestamp,
+      oldestTimestamp: data[data.length - 1]?.timestamp
+    }
+    
+    // 提取数值
+    const values = data.map(d => d.value)
+    form.values = values.map(v => v.toFixed(2)).join(', ')
+    
+    ElMessage.success(`从存储层加载了 ${data.length} 条数据${originalCount > maxLoad ? '（共' + originalCount + '条，已限制为最新' + maxLoad + '条）' : ''}`)
+  } catch (error) {
+    ElMessage.error('加载失败: ' + error.message)
+  } finally {
+    loadingFromStorage.value = false
+  }
 }
 
 // 执行时间同步
@@ -282,5 +351,18 @@ const performSync = async () => {
 .more-data {
   text-align: center;
   padding: 10px;
+}
+
+.data-source-info {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #f0f9ff;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #606266;
+}
+
+.data-source-info span {
+  margin-left: 10px;
 }
 </style>

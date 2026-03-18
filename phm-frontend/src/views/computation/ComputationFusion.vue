@@ -15,10 +15,14 @@
           </template>
           <el-form :model="sourceA" label-width="100px">
             <el-form-item label="设备ID">
-              <el-input v-model="sourceA.deviceId" placeholder="EQ-001" />
+              <el-select v-model="sourceA.deviceId" placeholder="选择设备" style="width: 150px">
+                <el-option label="设备 EQ-001" value="EQ-001" />
+                <el-option label="设备 EQ-002" value="EQ-002" />
+                <el-option label="设备 EQ-003" value="EQ-003" />
+              </el-select>
             </el-form-item>
             <el-form-item label="传感器类型">
-              <el-select v-model="sourceA.sensorType">
+              <el-select v-model="sourceA.sensorType" style="width: 150px">
                 <el-option label="温度" value="temperature" />
                 <el-option label="振动" value="vibration" />
                 <el-option label="压力" value="pressure" />
@@ -31,6 +35,13 @@
                 :rows="3"
                 placeholder="输入数值，用逗号分隔，如: 10.5, 20.3, 15.8"
               />
+              <div v-if="sourceAInfo" class="data-source-info">
+                <el-tag type="success" size="small">已加载 {{ sourceAInfo.loadedCount }}条</el-tag>
+                <span>时间: {{ sourceAInfo.oldestTimestamp?.slice(0, 19) }} ~ {{ sourceAInfo.latestTimestamp?.slice(0, 19) }}</span>
+              </div>
+            </el-form-item>
+            <el-form-item>
+              <el-button type="success" size="small" @click="loadSourceA" :loading="loadingA">从存储层加载</el-button>
             </el-form-item>
           </el-form>
         </el-card>
@@ -47,10 +58,14 @@
           </template>
           <el-form :model="sourceB" label-width="100px">
             <el-form-item label="设备ID">
-              <el-input v-model="sourceB.deviceId" placeholder="EQ-001" />
+              <el-select v-model="sourceB.deviceId" placeholder="选择设备" style="width: 150px">
+                <el-option label="设备 EQ-001" value="EQ-001" />
+                <el-option label="设备 EQ-002" value="EQ-002" />
+                <el-option label="设备 EQ-003" value="EQ-003" />
+              </el-select>
             </el-form-item>
             <el-form-item label="传感器类型">
-              <el-select v-model="sourceB.sensorType">
+              <el-select v-model="sourceB.sensorType" style="width: 150px">
                 <el-option label="温度" value="temperature" />
                 <el-option label="振动" value="vibration" />
                 <el-option label="压力" value="pressure" />
@@ -63,6 +78,13 @@
                 :rows="3"
                 placeholder="输入数值，用逗号分隔，如: 11.2, 19.8, 16.1"
               />
+              <div v-if="sourceBInfo" class="data-source-info">
+                <el-tag type="success" size="small">已加载 {{ sourceBInfo.loadedCount }}条</el-tag>
+                <span>时间: {{ sourceBInfo.oldestTimestamp?.slice(0, 19) }} ~ {{ sourceBInfo.latestTimestamp?.slice(0, 19) }}</span>
+              </div>
+            </el-form-item>
+            <el-form-item>
+              <el-button type="success" size="small" @click="loadSourceB" :loading="loadingB">从存储层加载</el-button>
             </el-form-item>
           </el-form>
         </el-card>
@@ -165,10 +187,14 @@
 import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Connection, DataLine } from '@element-plus/icons-vue'
-import { computationApi } from '../../api/request'
+import { computationApi, storageApi } from '../../api/request'
 
 const loading = ref(false)
 const result = ref(null)
+const loadingA = ref(false)
+const loadingB = ref(false)
+const sourceAInfo = ref(null)
+const sourceBInfo = ref(null)
 
 const sourceA = reactive({
   deviceId: 'EQ-001',
@@ -177,7 +203,7 @@ const sourceA = reactive({
 })
 
 const sourceB = reactive({
-  deviceId: 'EQ-001',
+  deviceId: 'EQ-002',
   sensorType: 'temperature',
   values: '20.8, 21.0, 21.2, 21.8, 21.3, 21.1, 21.5'
 })
@@ -187,6 +213,63 @@ const formatPercent = (value) => {
   if (value === null || value === undefined) return '-'
   return (value * 100).toFixed(2) + '%'
 }
+
+// 从存储层加载数据的通用函数
+const loadFromStorage = async (source, infoRef, loadingRef) => {
+  loadingRef.value = true
+  infoRef.value = null
+  try {
+    const params = {
+      deviceId: source.deviceId,
+      start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      end: new Date().toISOString()
+    }
+    if (source.sensorType) {
+      params.sensorType = source.sensorType
+    }
+    
+    const res = await storageApi.queryTimeSeries(params)
+    let data = res.data || []
+    
+    if (data.length === 0) {
+      ElMessage.warning(`未找到设备 ${source.deviceId} 的数据，请先在采集层录入数据`)
+      return
+    }
+    
+    // 限制最多加载50条数据
+    const maxLoad = 50
+    const originalCount = data.length
+    if (data.length > maxLoad) {
+      data = data.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, maxLoad)
+    }
+    
+    // 记录数据来源信息
+    infoRef.value = {
+      deviceId: source.deviceId,
+      sensorType: source.sensorType,
+      totalCount: originalCount,
+      loadedCount: data.length,
+      latestTimestamp: data[0]?.timestamp,
+      oldestTimestamp: data[data.length - 1]?.timestamp
+    }
+    
+    // 提取数值
+    const values = data.map(d => d.value)
+    source.values = values.map(v => v.toFixed(2)).join(', ')
+    
+    ElMessage.success(`数据源已加载 ${data.length} 条数据`)
+  } catch (error) {
+    ElMessage.error('加载失败: ' + error.message)
+  } finally {
+    loadingRef.value = false
+  }
+}
+
+// 加载数据源A
+const loadSourceA = () => loadFromStorage(sourceA, sourceAInfo, loadingA)
+
+// 加载数据源B
+const loadSourceB = () => loadFromStorage(sourceB, sourceBInfo, loadingB)
 
 // 生成示例数据
 const generateSampleData = () => {
@@ -200,6 +283,8 @@ const generateSampleData = () => {
 
   sourceA.values = generateValues(10, 2)
   sourceB.values = generateValues(10, 1.5)
+  sourceAInfo.value = null
+  sourceBInfo.value = null
 
   ElMessage.success('已生成示例数据')
 }
@@ -320,5 +405,18 @@ const performFusion = async () => {
 .processing-info {
   margin-top: 20px;
   text-align: right;
+}
+
+.data-source-info {
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: #f0f9ff;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #606266;
+}
+
+.data-source-info span {
+  margin-left: 8px;
 }
 </style>

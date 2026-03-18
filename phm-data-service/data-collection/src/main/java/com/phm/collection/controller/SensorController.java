@@ -63,8 +63,11 @@ public class SensorController {
             dataMap.put("deviceId", sensorData.getDeviceId());
             dataMap.put("sensorType", sensorData.getSensorType());
             dataMap.put("value", sensorData.getValue());
-            dataMap.put("timestamp", sensorData.getTimestamp() != null ? 
-                sensorData.getTimestamp().toString() : Instant.now().toString());
+            // LocalDateTime 转为 UTC Instant 字符串，保留Z标记
+            Instant instant = sensorData.getTimestamp() != null ?
+                sensorData.getTimestamp().atZone(java.time.ZoneId.systemDefault()).toInstant() :
+                Instant.now();
+            dataMap.put("timestamp", instant.toString());
             rawDataList.add(dataMap);
             
             // 转发给计算层处理（时间同步→融合→特征→存储）
@@ -127,8 +130,11 @@ public class SensorController {
                 dataMap.put("deviceId", sensorData.getDeviceId());
                 dataMap.put("sensorType", sensorData.getSensorType());
                 dataMap.put("value", sensorData.getValue());
-                dataMap.put("timestamp", sensorData.getTimestamp() != null ? 
-                    sensorData.getTimestamp().toString() : Instant.now().toString());
+                // LocalDateTime 转为 UTC Instant 字符串，保留Z标记
+                Instant instant = sensorData.getTimestamp() != null ?
+                    sensorData.getTimestamp().atZone(java.time.ZoneId.systemDefault()).toInstant() :
+                    Instant.now();
+                dataMap.put("timestamp", instant.toString());
                 rawDataList.add(dataMap);
             }
 

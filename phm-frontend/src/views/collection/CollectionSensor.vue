@@ -207,7 +207,7 @@ const sendSingleData = async () => {
       sensorType: singleForm.sensorType,
       value: singleForm.value,
       unit: singleForm.unit,
-      timestamp: singleForm.timestamp + 'Z',
+      timestamp: new Date(singleForm.timestamp).toISOString(),
       location: '前端采集'
     }
 

@@ -194,16 +194,18 @@ public class PipelineController {
                 storageData.put("deviceId", deviceId);
                 storageData.put("sensorType", sensorType);
                 
-                // 处理不同类型的数据
+                // 处理不同类型的数据 - 确保 timestamp 以 String 格式传递，避免 Jackson 序列化为数组
                 if (data instanceof SyncedData synced) {
-                    storageData.put("timestamp", synced.getSyncedTimestamp() != null ? 
-                        synced.getSyncedTimestamp().toInstant(java.time.ZoneOffset.UTC) : Instant.now());
+                    Instant ts = synced.getSyncedTimestamp() != null ?
+                        synced.getSyncedTimestamp().toInstant(java.time.ZoneOffset.UTC) : Instant.now();
+                    storageData.put("timestamp", ts.toString());  // 确保是字符串格式
                     storageData.put("value", synced.getValue());
                     storageData.put("confidence", synced.getConfidence());
                     storageData.put("interpolated", synced.getInterpolated());
                 } else if (data instanceof com.phm.computation.entity.SensorData sensor) {
-                    storageData.put("timestamp", sensor.getTimestamp() != null ? 
-                        sensor.getTimestamp().toInstant(java.time.ZoneOffset.UTC) : Instant.now());
+                    Instant ts = sensor.getTimestamp() != null ?
+                        sensor.getTimestamp().toInstant(java.time.ZoneOffset.UTC) : Instant.now();
+                    storageData.put("timestamp", ts.toString());  // 确保是字符串格式
                     storageData.put("value", sensor.getValue());
                     storageData.put("confidence", 1.0);
                     storageData.put("interpolated", false);

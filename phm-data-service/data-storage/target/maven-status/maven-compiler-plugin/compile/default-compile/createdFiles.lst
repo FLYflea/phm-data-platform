@@ -4,11 +4,16 @@ com\phm\storage\service\KnowledgeGraphService.class
 com\phm\storage\entity\fmeca\FailureMode.class
 com\phm\storage\repository\graph\KnowledgeGraphRepository.class
 com\phm\storage\service\DocumentService$Document.class
+com\phm\storage\service\timeseries\StorageBlockManager$MultiZoneBufferPool.class
 com\phm\storage\entity\graph\EquipmentNode.class
 com\phm\storage\service\FailureModeService.class
+com\phm\storage\service\timeseries\StorageBlockManager$StorageBlock.class
+com\phm\storage\service\timeseries\StorageBlockManager$StorageZone.class
+com\phm\storage\service\timeseries\StorageBlockManager.class
 com\phm\storage\repository\timeseries\SensorTimeSeriesRepository.class
 com\phm\storage\service\DocumentService.class
 com\phm\storage\controller\StorageController.class
+com\phm\storage\config\TestDataInitializer.class
 com\phm\storage\entity\graph\ComponentNode.class
 com\phm\storage\repository\graph\EquipmentRepository.class
 com\phm\storage\config\DataSourceConfig.class
