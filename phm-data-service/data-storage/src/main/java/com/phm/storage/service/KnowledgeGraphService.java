@@ -349,19 +349,20 @@ public class KnowledgeGraphService {
     }
 
     /**
-     * P1: 按类型查找设备
+     * P1: 按类型查找设备（type为null时返回所有设备）
      */
     public List<EquipmentNode> findByType(String type) {
-        if (type == null) {
-            return Collections.emptyList();
-        }
-
         try (Session session = neo4jDriver.session()) {
             return session.executeRead(tx -> {
-                var result = tx.run(
-                    "MATCH (e:Equipment {type: $type}) RETURN e",
-                    parameters("type", type)
-                );
+                String cypher;
+                org.neo4j.driver.Result result;
+                if (type == null || type.isEmpty()) {
+                    cypher = "MATCH (e:Equipment) RETURN e";
+                    result = tx.run(cypher);
+                } else {
+                    cypher = "MATCH (e:Equipment {type: $type}) RETURN e";
+                    result = tx.run(cypher, parameters("type", type));
+                }
 
                 List<EquipmentNode> equipments = new ArrayList<>();
                 while (result.hasNext()) {

@@ -12,12 +12,7 @@ import java.util.stream.Collectors;
  * 功能：
  * - 时域特征提取（均值、方差、标准差、峰值、峰峰值等）
  * - 频域特征提取（基于 DFT 简化版，提取主频率成分）
- * - 时频域特征接口预留（小波变换待实现）
- *
- * TODO: 可扩展
- * - 频域：引入 Apache Commons Math 的完整 FFT 实现
- * - 时频域：接入 JWave 等小波变换库
- * - 可接入深度学习特征提取（自编码器）
+ * - 时频域特征提取（基于 Haar 离散小波变换 DWT）
  */
 @Slf4j
 @Service
@@ -215,41 +210,133 @@ public class FeatureEngineeringService {
         return features;
     }
 
-    // ==================== 时频域特征（接口预留） ====================
+    // ==================== 时频域特征（Haar小波变换） ====================
 
     /**
-     * 提取时频域特征（接口预留）
+     * 提取时频域特征（Haar 离散小波变换 DWT）
      *
-     * TODO: 小波变换待实现
-     * - 计划接入连续小波变换（CWT）或离散小波变换（DWT）
-     * - 可选库：JWave、Apache Commons Math
-     * - 时频域特征适用于非平稳信号分析（如机械冲击）
+     * 算法：Haar 小波多层分解
+     * - 每层分解产生近似系数(cA)和细节系数(cD)
+     * - cA[i] = (x[2i] + x[2i+1]) / sqrt(2)
+     * - cD[i] = (x[2i] - x[2i+1]) / sqrt(2)
+     *
+     * 提取特征：各层能量、小波熵、高低频能量比等
      *
      * @param values 原始数值列表
-     * @return 时频域特征（当前返回空 Map）
+     * @return 时频域特征 Map
      */
     public Map<String, Object> extractTimeFrequency(List<Double> values) {
-        log.info("时频域特征提取接口已调用，数据点数: {}，小波变换待实现", 
-                values != null ? values.size() : 0);
+        if (values == null || values.size() < 4) {
+            log.warn("数据点数不足（需要至少4个点），无法提取时频域特征");
+            return Collections.emptyMap();
+        }
 
-        // TODO: 小波变换待实现
-        // 实现思路：
-        // 1. 选择母小波（Morlet / Daubechies / Haar）
-        // 2. 计算小波系数矩阵（时间 × 尺度）
-        // 3. 提取各频带的小波能量
-        // 4. 计算时频局部化特征
+        List<Double> valid = values.stream().filter(v -> v != null).collect(Collectors.toList());
+        int n = valid.size();
+        log.info("开始提取时频域特征（Haar小波变换），数据点数: {}", n);
 
-        Map<String, Object> placeholder = new LinkedHashMap<>();
-        placeholder.put("status", "待实现");
-        placeholder.put("note", "小波变换待实现，当前返回空特征");
-        placeholder.put("plannedFeatures", Arrays.asList(
-                "waveletEnergy",
-                "waveletEntropy",
-                "timeFrequencyMean",
-                "instantaneousFrequency"
-        ));
+        // 自适应分解层数：log2(n)，最多5层
+        int maxLevels = Math.min(5, (int) (Math.log(n) / Math.log(2)));
+        if (maxLevels < 1) maxLevels = 1;
 
-        return placeholder;
+        // Haar 小波多层分解
+        double[] signal = valid.stream().mapToDouble(Double::doubleValue).toArray();
+        List<double[]> detailCoeffs = new ArrayList<>(); // 每层细节系数
+        double[] approx = signal; // 当前近似系数
+
+        for (int level = 0; level < maxLevels; level++) {
+            int len = approx.length;
+            if (len < 2) break;
+
+            // 补零使长度为偶数
+            if (len % 2 != 0) {
+                double[] padded = new double[len + 1];
+                System.arraycopy(approx, 0, padded, 0, len);
+                padded[len] = approx[len - 1]; // 边界延拓
+                approx = padded;
+                len = approx.length;
+            }
+
+            int halfLen = len / 2;
+            double[] newApprox = new double[halfLen];
+            double[] detail = new double[halfLen];
+            double sqrt2 = Math.sqrt(2.0);
+
+            for (int i = 0; i < halfLen; i++) {
+                newApprox[i] = (approx[2 * i] + approx[2 * i + 1]) / sqrt2;
+                detail[i] = (approx[2 * i] - approx[2 * i + 1]) / sqrt2;
+            }
+
+            detailCoeffs.add(detail);
+            approx = newApprox;
+        }
+
+        // 提取特征
+        Map<String, Object> features = new LinkedHashMap<>();
+        int actualLevels = detailCoeffs.size();
+
+        // 1. 各层细节系数能量
+        double[] levelEnergies = new double[actualLevels];
+        double totalDetailEnergy = 0;
+        double maxDetailCoeff = 0;
+
+        for (int i = 0; i < actualLevels; i++) {
+            double[] detail = detailCoeffs.get(i);
+            double energy = 0;
+            for (double d : detail) {
+                energy += d * d;
+                if (Math.abs(d) > maxDetailCoeff) {
+                    maxDetailCoeff = Math.abs(d);
+                }
+            }
+            levelEnergies[i] = energy;
+            totalDetailEnergy += energy;
+            features.put("level" + (i + 1) + "Energy", energy);
+        }
+
+        // 2. 小波总能量
+        features.put("waveletEnergy", totalDetailEnergy);
+
+        // 3. 小波熵 = -Σ(p * log(p))，p 为各层能量占比
+        double waveletEntropy = 0;
+        if (totalDetailEnergy > 0) {
+            for (double le : levelEnergies) {
+                double p = le / totalDetailEnergy;
+                if (p > 1e-10) {
+                    waveletEntropy -= p * Math.log(p);
+                }
+            }
+        }
+        features.put("waveletEntropy", waveletEntropy);
+
+        // 4. 高低频能量比（level1+level2 为高频，最后两层为低频）
+        double highFreqEnergy = 0, lowFreqEnergy = 0;
+        for (int i = 0; i < actualLevels; i++) {
+            if (i < 2) {
+                highFreqEnergy += levelEnergies[i];
+            }
+            if (i >= actualLevels - 2) {
+                lowFreqEnergy += levelEnergies[i];
+            }
+        }
+        features.put("energyRatio", lowFreqEnergy > 1e-10 ? highFreqEnergy / lowFreqEnergy : 0.0);
+
+        // 5. 最大细节系数绝对值
+        features.put("maxDetailCoeff", maxDetailCoeff);
+
+        // 6. 最终近似系数均值
+        double approxMean = 0;
+        for (double a : approx) {
+            approxMean += a;
+        }
+        approxMean = approx.length > 0 ? approxMean / approx.length : 0;
+        features.put("approximationMean", approxMean);
+
+        // 7. 分解层数
+        features.put("decompositionLevels", actualLevels);
+
+        log.info("时频域特征提取完成（Haar DWT），分解 {} 层，总能量: {}", actualLevels, totalDetailEnergy);
+        return features;
     }
 
     // ==================== 综合特征提取 ====================

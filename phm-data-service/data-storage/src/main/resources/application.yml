@@ -5,53 +5,100 @@ spring:
   application:
     name: data-storage
 
-  # H2 内存数据库（临时方案）
+  # ========================================
+  # PostgreSQL 配置（主配置）
+  # ========================================
   datasource:
-    url: jdbc:h2:mem:phm_db;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
-    username: sa
-    password: 
-    driver-class-name: org.h2.Driver
+    url: jdbc:postgresql://localhost:5433/phm_db?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: phm
+    password: phm123
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
 
-  # H2 控制台
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
-
-  # JPA 配置
   jpa:
     hibernate:
-      ddl-auto: create
-    show-sql: false
+      ddl-auto: update
+    show-sql: true
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.H2Dialect
+        dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+        generate_statistics: false
 
-  # Neo4j 配置
+  # ========================================
+  # H2 内存数据库配置（备用）
+  # 如需使用 H2，取消下面注释并注释掉 PostgreSQL 配置
+  # ========================================
+  # datasource:
+  #   url: jdbc:h2:mem:phm_db;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+  #   username: sa
+  #   password: 
+  #   driver-class-name: org.h2.Driver
+  # h2:
+  #   console:
+  #     enabled: true
+  #     path: /h2-console
+  # jpa:
+  #   hibernate:
+  #     ddl-auto: create
+  #   show-sql: false
+  #   properties:
+  #     hibernate:
+  #       dialect: org.hibernate.dialect.H2Dialect
+
+  # ========================================
+  # Neo4j 图数据库配置（知识图谱）
+  # ========================================
   neo4j:
     uri: bolt://localhost:7687
     authentication:
       username: neo4j
       password: phm123456
 
-  # Data Neo4j 配置
   data:
     neo4j:
       database: neo4j
 
-# 健康检查
+# ========================================
+# 健康检查配置
+# ========================================
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics
   endpoint:
     health:
       show-details: always
+      probes:
+        enabled: true
 
+# ========================================
 # 日志配置
+# ========================================
 logging:
   level:
     com.phm.storage: INFO
-    org.hibernate.SQL: WARN
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.springframework.data.neo4j: INFO
+
+# ========================================
+# 自定义配置
+# ========================================
+storage:
+  batch:
+    size: 1000
+    flush-interval-ms: 5000
+  retention:
+    raw-data-days: 365
+    aggregated-data-days: 1095

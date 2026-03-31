@@ -66,7 +66,12 @@ export const collectionApi = {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
   // 文本解析
-  parseText: (data) => request.post('/collection/document/text', data)
+  parseText: (data) => request.post('/collection/document/text', data),
+  // CSV数据批量导入
+  importCsv: (formData) => request.post('/collection/sensor/import-csv', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 120000
+  })
 }
 
 // ==================== 计算层 API ====================
@@ -75,8 +80,14 @@ export const computationApi = {
   timeSync: (data) => request.post('/computation/sync/uncertainty', data),
   // 数据融合 - 修正路径为 /computation/fusion/pda
   dataFusion: (data) => request.post('/computation/fusion/pda', data),
-  // 特征提取
+  // 特征提取 - 时域
   extractFeatures: (data) => request.post('/computation/feature/time-domain', data),
+  // 特征提取 - 频域
+  extractFrequencyFeatures: (data) => request.post('/computation/feature/frequency-domain', data),
+  // 特征提取 - 时频域（小波变换）
+  extractTimeFrequencyFeatures: (data) => request.post('/computation/feature/time-frequency', data),
+  // 特征提取 - 全部（时域+频域+时频域）
+  extractAllFeatures: (data) => request.post('/computation/feature/all', data),
   // 知识图谱构建 - 支持图像和文本
   buildKnowledgeGraphFromImage: (formData) => request.post('/computation/knowledge/build/image', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
@@ -108,19 +119,45 @@ export const storageApi = {
   // FMECA故障模式查询
   queryFailureModes: (equipmentId) => request.get(`/storage/fmeca/failure-mode/equipment/${equipmentId}`),
   // 保存故障模式
-  saveFailureMode: (data) => request.post('/storage/fmeca/failure-mode', data)
+  saveFailureMode: (data) => request.post('/storage/fmeca/failure-mode', data),
+  // 知识图谱统计
+  getGraphStats: () => request.get('/storage/graph/stats'),
+  // 查询所有设备列表
+  queryAllEquipments: () => request.get('/storage/graph/equipments')
 }
 
 // ==================== 服务层 API ====================
 export const serviceApi = {
-  // 原始数据查询
+  // 统一查询 - 原始数据
   queryRawData: (data) => request.post('/service/query/raw', data),
-  // 处理后数据查询
+  // 统一查询 - 处理后数据
   queryProcessedData: (data) => request.post('/service/query/processed', data),
-  // 可视化数据 - 修正路径为 /service/chart/timeseries
+  // 可视化 - 时序图表
   getVisualizationData: (params) => request.get('/service/chart/timeseries', { params }),
-  // 聚合统计
-  getAggregation: (params) => request.get('/service/analysis/aggregate', { params })
+  // 可视化 - 饼图
+  getPieData: (params) => request.get('/service/chart/pie', { params }),
+  // 可视化 - 雷达图
+  getRadarData: (params) => request.get('/service/chart/radar', { params }),
+  // 可视化 - 热力图
+  getHeatmapData: (params) => request.get('/service/chart/heatmap', { params }),
+  // 多维分析 - 统计指标
+  getStatistics: (params) => request.get('/service/analysis/statistics', { params }),
+  // 多维分析 - 聚合
+  getAggregation: (params) => request.get('/service/analysis/aggregate', { params }),
+  // 数据分发 - 注册订阅
+  distributeRegister: (data) => request.post('/service/distribute/register', data),
+  // 数据分发 - 取消订阅
+  distributeUnregister: (id) => request.delete(`/service/distribute/unregister/${id}`),
+  // 数据分发 - 订阅列表
+  distributeList: () => request.get('/service/distribute/list'),
+  // 数据分发 - 触发推送
+  distributeTrigger: (id) => request.post(`/service/distribute/trigger/${id}`),
+  // 数据分发 - 事件日志
+  distributeEvents: () => request.get('/service/distribute/events'),
+  // 数据流 - 连接信息
+  streamConnections: () => request.get('/service/stream/connections'),
+  // 数据流 - 窗口统计
+  streamWindowStats: (params) => request.get('/service/stream/window-stats', { params })
 }
 
 export default request

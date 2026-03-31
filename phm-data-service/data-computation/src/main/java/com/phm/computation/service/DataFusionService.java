@@ -14,15 +14,9 @@ import java.util.stream.Collectors;
  * 多源数据融合服务
  *
  * 功能：
- * - 最近邻关联融合（NN）
+ * - 最近邻关联融合（NN）- 简单平均基线
  * - 概率数据关联（PDA）- 基于高斯分布假设
- * - 联合概率数据关联（JPDA）- 接口预留
- * 
- * TODO: 已完成PDA概率数据关联算法实现 2026-03-09
- * - 实现了基于高斯分布的概率关联公式：P ∝ exp(-error²/2σ²)
- * - 支持时间窗口对齐的多源数据融合
- * - 计算融合前后方差缩减比例评估融合效果
- * - 返回融合值、各源权重、置信度、处理耗时
+ * - 联合概率数据关联（JPDA）- 枚举联合假设，边缘化权重
  */
 @Slf4j
 @Service
@@ -402,14 +396,178 @@ public class DataFusionService {
         private LocalDateTime representativeTime;
     }
     
-    // ==================== JPDA融合（接口预留） ====================
+    // ==================== JPDA联合概率数据关联融合 ====================
     
     /**
-     * JPDA融合（接口预留）
-     * 当前退化为PDA融合
+     * JPDA（Joint Probabilistic Data Association）联合概率融合
+     * 
+     * 与PDA的区别：PDA对每个数据源独立计算权重；
+     * JPDA枚举所有合法的"观测-目标"联合关联假设，
+     * 取联合概率的边缘化结果作为最终权重。
+     * 
+     * 算法步骤：
+     * 1. 时间窗口对齐
+     * 2. 构造关联概率矩阵（每个源对目标的高斯似然）
+     * 3. 枚举所有合法联合假设（每个源关联或不关联）
+     * 4. 计算联合概率 = 各源概率之积
+     * 5. 边缘化得到每个源的最终权重
+     * 6. 加权融合
+     *
+     * @param multiSourceData 多源传感器数据
+     * @return JPDA融合结果列表
      */
     public List<FusionResult> jpdaFusion(List<List<SensorData>> multiSourceData) {
-        log.warn("JPDA融合尚未实现，退化为PDA融合");
-        return probabilisticFusion(multiSourceData);
+        long startTime = System.currentTimeMillis();
+        
+        if (multiSourceData == null || multiSourceData.isEmpty()) {
+            log.warn("JPDA融合：输入数据为空");
+            return Collections.emptyList();
+        }
+        
+        multiSourceData = multiSourceData.stream()
+                .filter(list -> list != null && !list.isEmpty())
+                .collect(Collectors.toList());
+        
+        if (multiSourceData.isEmpty()) {
+            return Collections.emptyList();
+        }
+        
+        int sourceCount = multiSourceData.size();
+        log.info("开始JPDA联合概率数据关联融合，数据源数量: {}", sourceCount);
+        
+        List<TimeAlignedGroup> alignedGroups = alignByTimeWindow(multiSourceData, DEFAULT_TIME_WINDOW_MS);
+        List<FusionResult> results = new ArrayList<>();
+        
+        // 用于跨时间步传递预测值（前一步的融合值）
+        double lastFusedValue = Double.NaN;
+        
+        for (TimeAlignedGroup group : alignedGroups) {
+            List<SensorData> groupData = group.getData();
+            if (groupData.isEmpty()) continue;
+            
+            String sensorType = groupData.get(0).getSensorType();
+            LocalDateTime timestamp = group.getRepresentativeTime();
+            int m = groupData.size(); // 本组数据源数
+            
+            // 预测值：使用上一时间步融合值，首次用均值
+            double predicted;
+            if (Double.isNaN(lastFusedValue)) {
+                predicted = groupData.stream().mapToDouble(SensorData::getValue).average().orElse(0.0);
+            } else {
+                predicted = lastFusedValue;
+            }
+            
+            // 步骤2：构造关联概率矩阵 likelihoods[i] = P(观测i关联到目标)
+            double[] likelihoods = new double[m];
+            double[] values = new double[m];
+            String[] deviceIds = new String[m];
+            
+            for (int i = 0; i < m; i++) {
+                SensorData sd = groupData.get(i);
+                values[i] = sd.getValue();
+                deviceIds[i] = sd.getDeviceId();
+                double error = values[i] - predicted;
+                // 高斯似然
+                likelihoods[i] = Math.exp(-(error * error) / (2 * JPDA_SENSOR_STD * JPDA_SENSOR_STD));
+            }
+            
+            // 步骤3：枚举所有联合假设
+            // 每个源可以"关联"(1)或"杂波/不关联"(0)，共 2^m 种假设
+            // 排除全不关联的情况
+            int totalHypotheses = 1 << m;
+            double[] hypothesisProbs = new double[totalHypotheses];
+            double totalJointProb = 0;
+            
+            for (int h = 1; h < totalHypotheses; h++) { // 跳过 h=0（全不关联）
+                double jointProb = 1.0;
+                for (int i = 0; i < m; i++) {
+                    if ((h & (1 << i)) != 0) {
+                        // 源i关联到目标
+                        jointProb *= likelihoods[i];
+                    } else {
+                        // 源i视为杂波，给予一个较低的均匀概率
+                        jointProb *= CLUTTER_PROBABILITY;
+                    }
+                }
+                hypothesisProbs[h] = jointProb;
+                totalJointProb += jointProb;
+            }
+            
+            // 步骤5：边缘化 — 对每个源i，其关联概率 = 所有"源i被关联"的假设概率之和 / 总概率
+            double[] marginalWeights = new double[m];
+            if (totalJointProb > 0) {
+                for (int i = 0; i < m; i++) {
+                    double marginProb = 0;
+                    for (int h = 1; h < totalHypotheses; h++) {
+                        if ((h & (1 << i)) != 0) {
+                            marginProb += hypothesisProbs[h];
+                        }
+                    }
+                    marginalWeights[i] = marginProb / totalJointProb;
+                }
+            } else {
+                // 退化为等权重
+                Arrays.fill(marginalWeights, 1.0 / m);
+            }
+            
+            // 归一化权重
+            double weightSum = 0;
+            for (double w : marginalWeights) weightSum += w;
+            Map<String, Double> normalizedWeights = new HashMap<>();
+            for (int i = 0; i < m; i++) {
+                normalizedWeights.put(deviceIds[i], weightSum > 0 ? marginalWeights[i] / weightSum : 1.0 / m);
+            }
+            
+            // 步骤6：加权融合
+            double fusedValue = 0;
+            for (int i = 0; i < m; i++) {
+                fusedValue += normalizedWeights.get(deviceIds[i]) * values[i];
+            }
+            lastFusedValue = fusedValue;
+            
+            // 方差计算
+            List<Double> valueList = new ArrayList<>();
+            for (double v : values) valueList.add(v);
+            double varianceBefore = calculateVariance(valueList);
+            double varianceAfter = 0;
+            for (int i = 0; i < m; i++) {
+                double w = normalizedWeights.get(deviceIds[i]);
+                varianceAfter += w * Math.pow(values[i] - fusedValue, 2);
+            }
+            double varianceReduction = varianceBefore > 0 ? (varianceBefore - varianceAfter) / varianceBefore : 0;
+            
+            double confidence = calculateConfidence(normalizedWeights);
+            
+            FusionResult result = new FusionResult();
+            result.setFusedSensorType(sensorType);
+            result.setFusedValue(fusedValue);
+            result.setTimestamp(timestamp);
+            result.setSourceWeights(normalizedWeights);
+            result.setConfidence(confidence);
+            result.setFusionMethod("JPDA");
+            result.setSourceCount(m);
+            result.setVarianceBefore(varianceBefore);
+            result.setVarianceAfter(varianceAfter);
+            result.setVarianceReduction(varianceReduction);
+            result.setProcessingTimeMs(System.currentTimeMillis() - startTime);
+            result.setNote(String.format("JPDA融合: %d个数据源, 枚举%d种假设, 方差缩减%.2f%%", 
+                    m, totalHypotheses - 1, varianceReduction * 100));
+            
+            results.add(result);
+        }
+        
+        long totalTime = System.currentTimeMillis() - startTime;
+        log.info("JPDA联合概率融合完成，输出 {} 条结果，总耗时: {}ms", results.size(), totalTime);
+        return results;
     }
+    
+    /**
+     * JPDA 参数：传感器噪声标准差（略大于PDA，更宽松的关联门限）
+     */
+    private static final double JPDA_SENSOR_STD = 0.15;
+    
+    /**
+     * JPDA 参数：杂波/不关联假设的均匀概率
+     */
+    private static final double CLUTTER_PROBABILITY = 0.1;
 }

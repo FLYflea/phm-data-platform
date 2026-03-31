@@ -169,6 +169,9 @@ import StorageTimeseries from './views/storage/StorageTimeseries.vue'
 import StorageGraph from './views/storage/StorageGraph.vue'
 import ServiceQuery from './views/service/ServiceQuery.vue'
 import ServiceVisualization from './views/service/ServiceVisualization.vue'
+import ServiceAnalysis from './views/service/ServiceAnalysis.vue'
+import ServiceDistribution from './views/service/ServiceDistribution.vue'
+import ServiceStream from './views/service/ServiceStream.vue'
 
 const activeMenu = ref('')
 

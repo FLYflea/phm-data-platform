@@ -73,8 +73,10 @@ public class KnowledgeGraphBuilderService {
             for (int i = 0; i < components.size(); i++) {
                 Map<String, Object> comp = components.get(i);
                 String componentId = equipmentId + "_comp_" + i;
-                String componentName = (String) comp.getOrDefault("name", "部件_" + i);
-                String componentType = (String) comp.getOrDefault("type", "unknown");
+                String componentName = (String) comp.getOrDefault("componentName", 
+                    comp.getOrDefault("name", "部件_" + i));
+                String componentType = (String) comp.getOrDefault("componentType", 
+                    comp.getOrDefault("type", "unknown"));
                 
                 Map<String, Object> savedComp = createComponentNode(equipmentId, componentId, 
                     componentName, componentType, comp);
@@ -142,7 +144,8 @@ public class KnowledgeGraphBuilderService {
             Map<String, String> entityIdMap = new HashMap<>();
             for (int i = 0; i < entities.size(); i++) {
                 Map<String, Object> entity = entities.get(i);
-                String entityName = (String) entity.getOrDefault("name", "实体_" + i);
+                String entityName = (String) entity.getOrDefault("text", 
+                    entity.getOrDefault("name", "实体_" + i));
                 String entityType = (String) entity.getOrDefault("type", "component");
                 String componentId = equipmentId + "_" + entityType + "_" + i;
                 
@@ -155,9 +158,10 @@ public class KnowledgeGraphBuilderService {
             log.info("Step 4: 创建关系");
             int relationCount = 0;
             for (Map<String, Object> relation : relations) {
-                String fromEntity = (String) relation.get("from");
-                String toEntity = (String) relation.get("to");
-                String relationType = (String) relation.getOrDefault("type", "RELATED_TO");
+                String fromEntity = (String) relation.get("subject");
+                String toEntity = (String) relation.get("object");
+                String relationType = (String) relation.getOrDefault("relationType", 
+                    relation.getOrDefault("predicate", "RELATED_TO"));
                 
                 String fromId = entityIdMap.get(fromEntity);
                 String toId = entityIdMap.get(toEntity);
@@ -243,7 +247,9 @@ public class KnowledgeGraphBuilderService {
             throw new RuntimeException("文本解析失败: " + responseBody.get("message"));
         }
         
-        return (Map<String, Object>) responseBody.getOrDefault("data", new HashMap<>());
+        // 先取 data，再从 data 中取 parseResult
+        Map<String, Object> data = (Map<String, Object>) responseBody.getOrDefault("data", new HashMap<>());
+        return (Map<String, Object>) data.getOrDefault("parseResult", data);
     }
 
     /**

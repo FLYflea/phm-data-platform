@@ -10,6 +10,11 @@ storage:
   service:
     url: http://localhost:8103
 
+# 数据计算服务配置
+computation:
+  service:
+    url: http://localhost:8102
+
 # 日志配置
 logging:
   level:

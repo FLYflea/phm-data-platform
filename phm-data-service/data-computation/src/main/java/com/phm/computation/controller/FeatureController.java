@@ -53,16 +53,10 @@ public class FeatureController {
     @PostMapping("/time-domain")
     public ResponseEntity<Map<String, Object>> extractTimeDomain(@RequestBody Map<String, Object> request) {
         try {
-            @SuppressWarnings("unchecked")
-            List<Number> values = (List<Number>) request.get("values");
-            
-            if (values == null || values.isEmpty()) {
+            List<Double> doubleValues = parseValues(request);
+            if (doubleValues == null) {
                 return ResponseEntity.badRequest().body(buildErrorResponse("数值列表不能为空"));
             }
-            
-            List<Double> doubleValues = values.stream()
-                    .map(Number::doubleValue)
-                    .toList();
             
             Map<String, Double> features = featureEngineeringService.extractTimeDomain(doubleValues);
             
@@ -75,6 +69,74 @@ public class FeatureController {
         } catch (Exception e) {
             return ResponseEntity.status(500).body(buildErrorResponse("特征提取失败: " + e.getMessage()));
         }
+    }
+
+    @PostMapping("/frequency-domain")
+    public ResponseEntity<Map<String, Object>> extractFrequencyDomain(@RequestBody Map<String, Object> request) {
+        try {
+            List<Double> doubleValues = parseValues(request);
+            if (doubleValues == null) {
+                return ResponseEntity.badRequest().body(buildErrorResponse("数值列表不能为空"));
+            }
+
+            Map<String, Object> features = featureEngineeringService.extractFrequencyDomain(doubleValues);
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("features", features);
+            data.put("featureCount", features.size());
+
+            return ResponseEntity.ok(buildSuccessResponse(data, "频域特征提取完成"));
+
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(buildErrorResponse("频域特征提取失败: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/time-frequency")
+    public ResponseEntity<Map<String, Object>> extractTimeFrequency(@RequestBody Map<String, Object> request) {
+        try {
+            List<Double> doubleValues = parseValues(request);
+            if (doubleValues == null) {
+                return ResponseEntity.badRequest().body(buildErrorResponse("数值列表不能为空"));
+            }
+
+            Map<String, Object> features = featureEngineeringService.extractTimeFrequency(doubleValues);
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("features", features);
+            data.put("featureCount", features.size());
+
+            return ResponseEntity.ok(buildSuccessResponse(data, "时频域特征提取完成（Haar小波变换）"));
+
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(buildErrorResponse("时频域特征提取失败: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/all")
+    public ResponseEntity<Map<String, Object>> extractAllFeatures(@RequestBody Map<String, Object> request) {
+        try {
+            List<Double> doubleValues = parseValues(request);
+            if (doubleValues == null) {
+                return ResponseEntity.badRequest().body(buildErrorResponse("数值列表不能为空"));
+            }
+
+            Map<String, Object> allFeatures = featureEngineeringService.extractAllFeatures(doubleValues);
+
+            return ResponseEntity.ok(buildSuccessResponse(allFeatures, "全部特征提取完成（时域+频域+时频域）"));
+
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(buildErrorResponse("全部特征提取失败: " + e.getMessage()));
+        }
+    }
+    
+    @SuppressWarnings("unchecked")
+    private List<Double> parseValues(Map<String, Object> request) {
+        List<Number> values = (List<Number>) request.get("values");
+        if (values == null || values.isEmpty()) {
+            return null;
+        }
+        return values.stream().map(Number::doubleValue).toList();
     }
     
     private Map<String, Object> buildSuccessResponse(Object data, String note) {

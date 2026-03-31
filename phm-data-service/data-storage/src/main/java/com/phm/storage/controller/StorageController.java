@@ -476,6 +476,58 @@ public class StorageController {
         return response;
     }
     
+    /**
+     * P1: 查询图谱统计信息
+     */
+    @GetMapping("/graph/stats")
+    public Map<String, Object> getGraphStats() {
+        log.info("P1查询图谱统计信息");
+        
+        Map<String, Object> response = new HashMap<>(knowledgeGraphService.getGraphStats());
+        response.put("status", "success");
+        
+        log.info("P1图谱统计: {}", response);
+        return response;
+    }
+    
+    /**
+     * P1: 查询所有设备列表（含组件数量）
+     */
+    @GetMapping("/graph/equipments")
+    public Map<String, Object> getAllEquipments() {
+        log.info("P1查询所有设备列表");
+        
+        List<EquipmentNode> equipments = knowledgeGraphService.findByType(null);
+        
+        // 为每个设备补充组件信息
+        List<Map<String, Object>> equipmentList = new ArrayList<>();
+        for (EquipmentNode eq : equipments) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("equipmentId", eq.getEquipmentId());
+            item.put("name", eq.getName());
+            item.put("type", eq.getType());
+            item.put("status", eq.getStatus());
+            // 尝试获取完整的组件列表
+            Optional<EquipmentNode> full = knowledgeGraphService.findEquipmentWithComponents(eq.getEquipmentId());
+            if (full.isPresent()) {
+                item.put("componentCount", full.get().getComponents().size());
+                item.put("components", full.get().getComponents());
+            } else {
+                item.put("componentCount", 0);
+                item.put("components", Collections.emptyList());
+            }
+            equipmentList.add(item);
+        }
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("equipments", equipmentList);
+        response.put("count", equipmentList.size());
+        response.put("status", "success");
+        
+        log.info("P1查询到 {} 个设备", equipmentList.size());
+        return response;
+    }
+    
     // ==================== P2: 文档存储接口（已完成） ====================
     
     /**

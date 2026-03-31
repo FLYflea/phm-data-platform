@@ -12,7 +12,12 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.*;
 
@@ -166,6 +171,279 @@ public class SensorController {
             log.error("批量数据转发异常: {}", e.getMessage(), e);
             return ResponseEntity.status(500).body(buildErrorResponse("批量数据转发异常: " + e.getMessage()));
         }
+    }
+
+    /**
+     * CSV数据批量导入接口
+     * 
+     * 支持导入公开数据集（如NASA CMAPSS涡扇发动机数据集）到系统中
+     * 
+     * @param file CSV文件
+     * @param deviceId 设备ID
+     * @param sensorColumns 传感器列名，逗号分隔（如 "sensor1,sensor2,sensor3"）
+     * @param timestampColumn 时间戳列名（可选，不指定则自动生成）
+     * @param delimiter 分隔符（默认逗号）
+     * @param skipHeader 是否跳过表头（默认true）
+     * @return 导入统计结果
+     */
+    @PostMapping("/sensor/import-csv")
+    public ResponseEntity<Map<String, Object>> importCsvData(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("deviceId") String deviceId,
+            @RequestParam("sensorColumns") String sensorColumns,
+            @RequestParam(value = "timestampColumn", required = false) String timestampColumn,
+            @RequestParam(value = "delimiter", defaultValue = ",") String delimiter,
+            @RequestParam(value = "skipHeader", defaultValue = "true") boolean skipHeader) {
+        
+        long startTime = System.currentTimeMillis();
+        log.info("CSV数据导入开始: file={}, deviceId={}, sensorColumns={}, timestampColumn={}, delimiter='{}', skipHeader={}",
+                file.getOriginalFilename(), deviceId, sensorColumns, timestampColumn, delimiter, skipHeader);
+
+        // 参数校验
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().body(buildErrorResponse("CSV文件不能为空"));
+        }
+        if (deviceId == null || deviceId.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(buildErrorResponse("设备ID不能为空"));
+        }
+        if (sensorColumns == null || sensorColumns.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(buildErrorResponse("传感器列名不能为空"));
+        }
+
+        // 解析传感器列名
+        String[] sensorColumnArray = sensorColumns.split(",");
+        for (int i = 0; i < sensorColumnArray.length; i++) {
+            sensorColumnArray[i] = sensorColumnArray[i].trim();
+        }
+
+        // 统计变量
+        int totalRows = 0;
+        int totalDataPoints = 0;
+        int successCount = 0;
+        int failCount = 0;
+        List<String> errors = new ArrayList<>();
+
+        // 存储解析出的数据
+        List<Map<String, Object>> rawDataList = new ArrayList<>();
+        Map<String, Integer> columnIndexMap = new HashMap<>();
+        Integer timestampColumnIndex = null;
+
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
+            
+            String line;
+            int lineNumber = 0;
+            Instant baseTimestamp = Instant.now();
+            
+            while ((line = reader.readLine()) != null) {
+                lineNumber++;
+                
+                // 跳过空行
+                if (line.trim().isEmpty()) {
+                    continue;
+                }
+                
+                String[] columns = line.split(delimiter, -1); // -1保留尾部空字符串
+                
+                // 处理表头行：建立列名到索引的映射
+                if (lineNumber == 1) {
+                    for (int i = 0; i < columns.length; i++) {
+                        columnIndexMap.put(columns[i].trim(), i);
+                    }
+                    
+                    // 查找时间戳列索引
+                    if (timestampColumn != null && !timestampColumn.trim().isEmpty()) {
+                        timestampColumnIndex = columnIndexMap.get(timestampColumn.trim());
+                        if (timestampColumnIndex == null) {
+                            log.warn("未找到时间戳列: {}, 将自动生成时间戳", timestampColumn);
+                        }
+                    }
+                    
+                    // 验证传感器列是否存在
+                    for (String sensorCol : sensorColumnArray) {
+                        if (!columnIndexMap.containsKey(sensorCol)) {
+                            // 尝试按索引解析（如果是数字）
+                            try {
+                                int idx = Integer.parseInt(sensorCol);
+                                if (idx >= 0 && idx < columns.length) {
+                                    columnIndexMap.put(sensorCol, idx);
+                                }
+                            } catch (NumberFormatException e) {
+                                errors.add("第1行: 未找到传感器列 '" + sensorCol + "'");
+                            }
+                        }
+                    }
+                    
+                    if (skipHeader) {
+                        continue;
+                    }
+                }
+                
+                totalRows++;
+                
+                // 计算当前行的时间戳
+                Instant rowTimestamp;
+                if (timestampColumnIndex != null && timestampColumnIndex < columns.length) {
+                    try {
+                        String tsValue = columns[timestampColumnIndex].trim();
+                        // 尝试解析时间戳（支持多种格式）
+                        rowTimestamp = parseTimestamp(tsValue, baseTimestamp, totalRows);
+                    } catch (Exception e) {
+                        // 解析失败，使用自动生成
+                        rowTimestamp = baseTimestamp.plusSeconds(totalRows - 1);
+                    }
+                } else {
+                    // 无时间戳列，按行号递增自动生成（间馔1秒）
+                    rowTimestamp = baseTimestamp.plusSeconds(totalRows - 1);
+                }
+                
+                // 解析每个传感器列的数据
+                for (String sensorCol : sensorColumnArray) {
+                    Integer colIndex = columnIndexMap.get(sensorCol);
+                    if (colIndex == null || colIndex >= columns.length) {
+                        failCount++;
+                        continue;
+                    }
+                    
+                    String valueStr = columns[colIndex].trim();
+                    if (valueStr.isEmpty()) {
+                        failCount++;
+                        continue;
+                    }
+                    
+                    try {
+                        double value = Double.parseDouble(valueStr);
+                        
+                        Map<String, Object> dataMap = new HashMap<>();
+                        dataMap.put("deviceId", deviceId);
+                        dataMap.put("sensorType", sensorCol);
+                        dataMap.put("value", value);
+                        dataMap.put("timestamp", rowTimestamp.toString());
+                        rawDataList.add(dataMap);
+                        
+                        totalDataPoints++;
+                        successCount++;
+                    } catch (NumberFormatException e) {
+                        failCount++;
+                        if (errors.size() < 10) {
+                            errors.add("第" + lineNumber + "行, 列'" + sensorCol + "': 无法解析数值 '" + valueStr + "'");
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("CSV文件读取异常: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(buildErrorResponse("CSV文件读取异常: " + e.getMessage()));
+        }
+
+        // 批量转发到计算层
+        int storedCount = 0;
+        if (!rawDataList.isEmpty()) {
+            try {
+                // 分批发送，每批1000条
+                int batchSize = 1000;
+                for (int i = 0; i < rawDataList.size(); i += batchSize) {
+                    int end = Math.min(i + batchSize, rawDataList.size());
+                    List<Map<String, Object>> batch = rawDataList.subList(i, end);
+                    
+                    String pipelineUrl = computationServiceUrl + "/computation/pipeline/full";
+                    Map<String, Object> pipelineRequest = new HashMap<>();
+                    pipelineRequest.put("rawData", batch);
+                    pipelineRequest.put("deviceId", deviceId);
+                    pipelineRequest.put("sensorType", "CSV_IMPORT");
+                    pipelineRequest.put("skipFeatureExtraction", true); // 大批量导入时跳过特征提取
+                    
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> response = restTemplate.postForObject(pipelineUrl, pipelineRequest, Map.class);
+                    
+                    if (response != null && "success".equals(response.get("status"))) {
+                        storedCount += batch.size();
+                    } else {
+                        log.warn("批次{}-{}发送失败", i, end);
+                    }
+                }
+                log.info("CSV数据已转发到计算层，共{}条", storedCount);
+            } catch (Exception e) {
+                log.error("数据转发到计算层失败: {}", e.getMessage(), e);
+                errors.add("数据转发失败: " + e.getMessage());
+            }
+        }
+
+        long elapsed = System.currentTimeMillis() - startTime;
+
+        // 构建返回结果
+        Map<String, Object> statistics = new LinkedHashMap<>();
+        statistics.put("filename", file.getOriginalFilename());
+        statistics.put("fileSize", file.getSize());
+        statistics.put("deviceId", deviceId);
+        statistics.put("sensorColumns", sensorColumnArray);
+        statistics.put("totalRows", totalRows);
+        statistics.put("totalDataPoints", totalDataPoints);
+        statistics.put("successCount", successCount);
+        statistics.put("failCount", failCount);
+        statistics.put("storedCount", storedCount);
+        statistics.put("elapsedMs", elapsed);
+        statistics.put("throughput", totalRows > 0 ? String.format("%.2f rows/s", totalRows * 1000.0 / elapsed) : "N/A");
+        if (!errors.isEmpty()) {
+            statistics.put("errors", errors.size() > 10 ? errors.subList(0, 10) : errors);
+            if (errors.size() > 10) {
+                statistics.put("errorsTruncated", true);
+                statistics.put("totalErrors", errors.size());
+            }
+        }
+
+        log.info("CSV数据导入完成: 总行数={}, 数据点={}, 成功={}, 失败={}, 存储={}, 耗时={}ms",
+                totalRows, totalDataPoints, successCount, failCount, storedCount, elapsed);
+
+        return ResponseEntity.ok(buildSuccessResponse(statistics, 
+                "CSV数据导入完成，共解析" + totalRows + "行，生成" + totalDataPoints + "个数据点"));
+    }
+    
+    /**
+     * 解析时间戳字符串
+     * 支持多种格式：ISO-8601, 纯数字(秒/毫秒), 常见日期格式
+     */
+    private Instant parseTimestamp(String value, Instant baseTimestamp, int rowNumber) {
+        if (value == null || value.trim().isEmpty()) {
+            return baseTimestamp.plusSeconds(rowNumber - 1);
+        }
+        
+        value = value.trim();
+        
+        // 尝试解析为纯数字（秒或毫秒）
+        try {
+            double numericValue = Double.parseDouble(value);
+            // 如果数值大于10^12，认为是毫秒
+            if (numericValue > 1e12) {
+                return Instant.ofEpochMilli((long) numericValue);
+            } else if (numericValue > 1e9) {
+                // 认为是秒
+                return Instant.ofEpochSecond((long) numericValue);
+            } else {
+                // 认为是相对时间（秒），从基准时间开始
+                return baseTimestamp.plusSeconds((long) numericValue);
+            }
+        } catch (NumberFormatException e) {
+            // 不是纯数字，尝试其他格式
+        }
+        
+        // 尝试ISO-8601格式
+        try {
+            return Instant.parse(value);
+        } catch (Exception e) {
+            // 继续尝试其他格式
+        }
+        
+        // 尝试常见日期时间格式: yyyy-MM-dd HH:mm:ss
+        try {
+            LocalDateTime ldt = LocalDateTime.parse(value.replace(" ", "T"));
+            return ldt.atZone(ZoneId.systemDefault()).toInstant();
+        } catch (Exception e) {
+            // 解析失败
+        }
+        
+        // 所有格式都失败，使用自动生成
+        return baseTimestamp.plusSeconds(rowNumber - 1);
     }
 
     // ==================== 文档解析接口 ====================

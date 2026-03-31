@@ -158,6 +158,9 @@ public class FusionController {
             // 执行NN融合（作为基线对比）
             List<FusionResult> nnResults = dataFusionService.nearestNeighborFusion(multiSourceData);
             
+            // 执行JPDA融合
+            List<FusionResult> jpdaResults = dataFusionService.jpdaFusion(multiSourceData);
+            
             // 计算对比统计
             double pdaAvgVarianceReduction = pdaResults.stream()
                     .mapToDouble(FusionResult::getVarianceReduction)
@@ -169,12 +172,22 @@ public class FusionController {
                     .average()
                     .orElse(0.0);
             
+            double jpdaAvgVarianceReduction = jpdaResults.stream()
+                    .mapToDouble(FusionResult::getVarianceReduction)
+                    .average()
+                    .orElse(0.0);
+            
             double pdaAvgConfidence = pdaResults.stream()
                     .mapToDouble(FusionResult::getConfidence)
                     .average()
                     .orElse(0.0);
             
             double nnAvgConfidence = nnResults.stream()
+                    .mapToDouble(FusionResult::getConfidence)
+                    .average()
+                    .orElse(0.0);
+            
+            double jpdaAvgConfidence = jpdaResults.stream()
                     .mapToDouble(FusionResult::getConfidence)
                     .average()
                     .orElse(0.0);
@@ -194,9 +207,19 @@ public class FusionController {
                     "avgConfidence", nnAvgConfidence,
                     "resultCount", nnResults.size()
             ));
+            comparison.put("jpda", Map.of(
+                    "results", jpdaResults,
+                    "avgVarianceReduction", jpdaAvgVarianceReduction,
+                    "avgConfidence", jpdaAvgConfidence,
+                    "resultCount", jpdaResults.size()
+            ));
             comparison.put("improvement", Map.of(
                     "varianceReductionGain", pdaAvgVarianceReduction - nnAvgVarianceReduction,
-                    "confidenceGain", pdaAvgConfidence - nnAvgConfidence
+                    "confidenceGain", pdaAvgConfidence - nnAvgConfidence,
+                    "jpdaVsPda", Map.of(
+                            "varianceReductionGain", jpdaAvgVarianceReduction - pdaAvgVarianceReduction,
+                            "confidenceGain", jpdaAvgConfidence - pdaAvgConfidence
+                    )
             ));
             comparison.put("processingTimeMs", processingTime);
             

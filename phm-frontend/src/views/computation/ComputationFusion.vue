@@ -1,7 +1,7 @@
 <template>
   <div class="computation-fusion">
     <h2>数据融合服务</h2>
-    <p class="desc">计算层核心功能：PDA概率数据关联融合算法</p>
+    <p class="desc">计算层核心功能：PDA/JPDA概率数据关联融合算法</p>
 
     <el-row :gutter="20">
       <!-- 数据源A -->
@@ -109,12 +109,12 @@
         <span>融合结果对比</span>
       </template>
 
-      <el-row :gutter="20">
+      <el-row :gutter="15">
         <!-- PDA结果 -->
-        <el-col :span="12">
+        <el-col :span="8">
           <div class="result-section pda-result">
             <h4>PDA概率融合</h4>
-            <el-descriptions :column="1" border>
+            <el-descriptions :column="1" border size="small">
               <el-descriptions-item label="融合结果数">{{ result.pda?.resultCount || 0 }}</el-descriptions-item>
               <el-descriptions-item label="平均置信度">{{ formatPercent(result.pda?.avgConfidence) }}</el-descriptions-item>
               <el-descriptions-item label="方差缩减率">{{ formatPercent(result.pda?.avgVarianceReduction) }}</el-descriptions-item>
@@ -122,11 +122,23 @@
           </div>
         </el-col>
 
+        <!-- JPDA结果 -->
+        <el-col :span="8" v-if="result.jpda">
+          <div class="result-section jpda-result">
+            <h4>JPDA联合概率融合</h4>
+            <el-descriptions :column="1" border size="small">
+              <el-descriptions-item label="融合结果数">{{ result.jpda?.resultCount || 0 }}</el-descriptions-item>
+              <el-descriptions-item label="平均置信度">{{ formatPercent(result.jpda?.avgConfidence) }}</el-descriptions-item>
+              <el-descriptions-item label="方差缩减率">{{ formatPercent(result.jpda?.avgVarianceReduction) }}</el-descriptions-item>
+            </el-descriptions>
+          </div>
+        </el-col>
+
         <!-- NN基线 -->
-        <el-col :span="12">
+        <el-col :span="8">
           <div class="result-section nn-result">
             <h4>NN最近邻基线</h4>
-            <el-descriptions :column="1" border>
+            <el-descriptions :column="1" border size="small">
               <el-descriptions-item label="融合结果数">{{ result.nn?.resultCount || 0 }}</el-descriptions-item>
               <el-descriptions-item label="平均置信度">{{ formatPercent(result.nn?.avgConfidence) }}</el-descriptions-item>
               <el-descriptions-item label="方差缩减率">{{ formatPercent(result.nn?.avgVarianceReduction) }}</el-descriptions-item>
@@ -137,21 +149,19 @@
 
       <!-- 性能提升 -->
       <div v-if="result.improvement" class="improvement-section">
-        <h4>PDA相比NN的提升</h4>
+        <h4>算法性能对比</h4>
         <el-row :gutter="20">
-          <el-col :span="12">
-            <el-statistic
-              title="置信度提升"
-              :value="result.improvement.confidenceGain"
-              :precision="4"
-            />
+          <el-col :span="6">
+            <el-statistic title="PDA vs NN 置信度提升" :value="result.improvement.confidenceGain" :precision="4" />
           </el-col>
-          <el-col :span="12">
-            <el-statistic
-              title="方差缩减提升"
-              :value="result.improvement.varianceReductionGain"
-              :precision="4"
-            />
+          <el-col :span="6">
+            <el-statistic title="PDA vs NN 方差缩减提升" :value="result.improvement.varianceReductionGain" :precision="4" />
+          </el-col>
+          <el-col :span="6" v-if="result.improvement.jpdaVsPda">
+            <el-statistic title="JPDA vs PDA 置信度提升" :value="result.improvement.jpdaVsPda.confidenceGain" :precision="4" />
+          </el-col>
+          <el-col :span="6" v-if="result.improvement.jpdaVsPda">
+            <el-statistic title="JPDA vs PDA 方差缩减提升" :value="result.improvement.jpdaVsPda.varianceReductionGain" :precision="4" />
           </el-col>
         </el-row>
       </div>
@@ -373,6 +383,11 @@ const performFusion = async () => {
 .nn-result {
   background: #f6ffed;
   border: 1px solid #52c41a;
+}
+
+.jpda-result {
+  background: #f0f5ff;
+  border: 1px solid #722ed1;
 }
 
 .result-section h4 {

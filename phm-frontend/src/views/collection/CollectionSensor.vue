@@ -25,10 +25,10 @@
 
             <el-form-item label="传感器类型">
               <el-radio-group v-model="singleForm.sensorType">
-                <el-radio label="temperature">温度</el-radio>
-                <el-radio label="vibration">振动</el-radio>
-                <el-radio label="pressure">压力</el-radio>
-                <el-radio label="current">电流</el-radio>
+                <el-radio value="temperature">温度</el-radio>
+                <el-radio value="vibration">振动</el-radio>
+                <el-radio value="pressure">压力</el-radio>
+                <el-radio value="current">电流</el-radio>
               </el-radio-group>
             </el-form-item>
 
@@ -80,10 +80,10 @@
 
             <el-form-item label="传感器类型">
               <el-radio-group v-model="batchForm.sensorType">
-                <el-radio label="temperature">温度</el-radio>
-                <el-radio label="vibration">振动</el-radio>
-                <el-radio label="pressure">压力</el-radio>
-                <el-radio label="current">电流</el-radio>
+                <el-radio value="temperature">温度</el-radio>
+                <el-radio value="vibration">振动</el-radio>
+                <el-radio value="pressure">压力</el-radio>
+                <el-radio value="current">电流</el-radio>
               </el-radio-group>
             </el-form-item>
 
@@ -101,6 +101,70 @@
             <el-form-item>
               <el-button type="success" @click="sendBatchData" :loading="batchLoading">
                 批量发送
+              </el-button>
+            </el-form-item>
+          </el-form>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <!-- CSV数据导入 -->
+    <el-row :gutter="20" style="margin-top: 20px;">
+      <el-col :span="24">
+        <el-card>
+          <template #header>
+            <div class="card-header">
+              <span>CSV数据导入</span>
+              <el-tag type="warning">公开数据集</el-tag>
+            </div>
+          </template>
+
+          <el-form :model="csvForm" label-width="120px">
+            <el-form-item label="数据文件">
+              <el-upload
+                ref="csvUploadRef"
+                v-model:file-list="csvForm.fileList"
+                drag
+                accept=".csv,.txt"
+                :auto-upload="false"
+                :limit="1"
+              >
+                <div class="el-upload__text">
+                  将文件拖到此处，或<em>点击上传</em>
+                </div>
+                <template #tip>
+                  <div class="el-upload__tip">支持 .csv 或 .txt 文件</div>
+                </template>
+              </el-upload>
+            </el-form-item>
+
+            <el-form-item label="设备ID">
+              <el-input v-model="csvForm.deviceId" placeholder="设备标识" />
+            </el-form-item>
+
+            <el-form-item label="传感器列名">
+              <el-input v-model="csvForm.sensorColumns" placeholder="逗号分隔，如: sensor1,sensor2,sensor3" />
+            </el-form-item>
+
+            <el-form-item label="时间戳列名">
+              <el-input v-model="csvForm.timestampColumn" placeholder="可选，不填则自动生成" />
+            </el-form-item>
+
+            <el-form-item label="分隔符">
+              <el-radio-group v-model="csvForm.delimiter">
+                <el-radio value=",">逗号</el-radio>
+                <el-radio value="\t">制表符</el-radio>
+                <el-radio value=" ">空格</el-radio>
+              </el-radio-group>
+            </el-form-item>
+
+            <el-form-item label="跳过表头">
+              <el-switch v-model="csvForm.skipHeader" />
+            </el-form-item>
+
+            <el-form-item>
+              <el-button type="warning" @click="importCsvData" :loading="csvLoading">
+                导入数据
               </el-button>
             </el-form-item>
           </el-form>
@@ -133,8 +197,22 @@
         <div v-if="lastResponse.features" class="features-section">
           <h4>提取的特征</h4>
           <el-tag v-for="(value, key) in lastResponse.features" :key="key" class="feature-tag">
-            {{ key }}: {{ value?.toFixed ? value.toFixed(2) : value }}
+            {{ featureNameMap[key] || key }}: {{ value?.toFixed ? value.toFixed(2) : value }}
           </el-tag>
+        </div>
+
+        <!-- CSV导入结果展示 -->
+        <div v-if="lastResponse.totalRows" class="csv-result-section">
+          <h4>CSV导入结果</h4>
+          <el-descriptions :column="2" border>
+            <el-descriptions-item label="文件名">{{ lastResponse.fileName }}</el-descriptions-item>
+            <el-descriptions-item label="总行数">{{ lastResponse.totalRows }} 行</el-descriptions-item>
+            <el-descriptions-item label="数据点数">{{ lastResponse.dataPointCount }} 个</el-descriptions-item>
+            <el-descriptions-item label="成功数">{{ lastResponse.successCount }} 条</el-descriptions-item>
+            <el-descriptions-item label="失败数">{{ lastResponse.failedCount }} 条</el-descriptions-item>
+            <el-descriptions-item label="存储数">{{ lastResponse.storedCount }} 条</el-descriptions-item>
+            <el-descriptions-item label="吞吐量">{{ lastResponse.throughput }}</el-descriptions-item>
+          </el-descriptions>
         </div>
       </div>
     </el-card>
@@ -148,6 +226,7 @@ import { collectionApi } from '../../api/request'
 
 const loading = ref(false)
 const batchLoading = ref(false)
+const csvLoading = ref(false)
 const flowActive = ref(0)
 const lastResponse = ref(null)
 
@@ -157,6 +236,22 @@ const sensorConfig = {
   vibration: { defaultValue: 12.5, unit: 'mm/s', range: [5, 20] },
   pressure: { defaultValue: 101.3, unit: 'kPa', range: [95, 110] },
   current: { defaultValue: 5.2, unit: 'A', range: [3, 8] }
+}
+
+// 特征名称中英文映射
+const featureNameMap = {
+  mean: '均值',
+  variance: '方差',
+  stdDev: '标准差',
+  rms: '均方根值',
+  peak: '峰值',
+  max: '最大值',
+  min: '最小值',
+  peakToPeak: '峰峰值',
+  waveformIndex: '波形指标',
+  crestFactor: '峰值因子',
+  kurtosis: '峭度',
+  skewness: '偏度'
 }
 
 // 单条数据表单
@@ -184,6 +279,16 @@ const batchForm = reactive({
   count: 10,
   minValue: 35,
   maxValue: 55
+})
+
+// CSV导入表单
+const csvForm = reactive({
+  deviceId: 'NASA-ENGINE-001',
+  sensorColumns: '',
+  timestampColumn: '',
+  delimiter: ',',
+  skipHeader: true,
+  fileList: []
 })
 
 // 监听批量表单传感器类型变化
@@ -265,6 +370,50 @@ const resetSingleForm = () => {
   singleForm.unit = 'mm/s'
   singleForm.timestamp = new Date().toISOString().slice(0, 19)
 }
+
+// CSV数据导入
+const importCsvData = async () => {
+  // 校验文件
+  if (!csvForm.fileList || csvForm.fileList.length === 0) {
+    ElMessage.warning('请选择要导入的CSV文件')
+    return
+  }
+  // 校验必填字段
+  if (!csvForm.deviceId) {
+    ElMessage.warning('请输入设备ID')
+    return
+  }
+  if (!csvForm.sensorColumns) {
+    ElMessage.warning('请输入传感器列名')
+    return
+  }
+
+  csvLoading.value = true
+  flowActive.value = 1
+  lastResponse.value = null
+
+  try {
+    const formData = new FormData()
+    formData.append('file', csvForm.fileList[0].raw)
+    formData.append('deviceId', csvForm.deviceId)
+    formData.append('sensorColumns', csvForm.sensorColumns)
+    if (csvForm.timestampColumn) {
+      formData.append('timestampColumn', csvForm.timestampColumn)
+    }
+    formData.append('delimiter', csvForm.delimiter)
+    formData.append('skipHeader', csvForm.skipHeader)
+
+    const res = await collectionApi.importCsv(formData)
+    flowActive.value = 4
+    lastResponse.value = res.data
+    ElMessage.success(`CSV导入成功！共 ${res.data.successCount || res.data.totalRows} 条数据`)
+  } catch (error) {
+    ElMessage.error('CSV导入失败: ' + error.message)
+    flowActive.value = 0
+  } finally {
+    csvLoading.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -300,5 +449,9 @@ const resetSingleForm = () => {
 
 .feature-tag {
   margin: 5px;
+}
+
+.csv-result-section {
+  margin-top: 15px;
 }
 </style>

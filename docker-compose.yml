@@ -1,7 +1,9 @@
+# PHM 数据管理平台 - 数据库服务
+version: '3.8'
+
 services:
-  # PostgreSQL + TimescaleDB (时序数据存储)
   postgres:
-    image: timescale/timescaledb:latest-pg15
+    image: postgres:15-alpine
     container_name: phm-postgres
     environment:
       POSTGRES_DB: phm_db
@@ -9,22 +11,13 @@ services:
       POSTGRES_PASSWORD: phm123
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    command:
-      - "postgres"
-      - "-c"
-      - "listen_addresses=*"
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
     ports:
       - "5432:5432"
     networks:
       - phm-network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U phm -d phm_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
-  # Neo4j (知识图谱存储)
   neo4j:
     image: neo4j:5.15
     container_name: phm-neo4j
@@ -33,19 +26,14 @@ services:
       NEO4J_PLUGINS: '["apoc"]'
       NEO4J_dbms_security_procedures_unrestricted: apoc.*
     ports:
-      - "7474:7474"   # HTTP
-      - "7687:7687"   # Bolt
+      - "7474:7474"
+      - "7687:7687"
     volumes:
       - neo4j_data:/data
       - neo4j_logs:/logs
     networks:
       - phm-network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:7474"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
 networks:
   phm-network:
