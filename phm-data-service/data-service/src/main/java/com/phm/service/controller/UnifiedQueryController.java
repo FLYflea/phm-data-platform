@@ -106,9 +106,10 @@ public class UnifiedQueryController {
             
             if (rawData.isEmpty()) {
                 Map<String, Object> emptyResult = new HashMap<>();
+                emptyResult.put("status", "success");
                 emptyResult.put("source", "computation");
                 emptyResult.put("dataType", "processed");
-                emptyResult.put("data", new ArrayList<>());
+                emptyResult.put("rawData", new ArrayList<>());
                 emptyResult.put("features", new HashMap<>());
                 return ResponseEntity.ok(emptyResult);
             }
@@ -126,6 +127,7 @@ public class UnifiedQueryController {
             Map<String, Object> featureResponse = restTemplate.postForObject(featureUrl, featureRequest, Map.class);
             
             Map<String, Object> result = new HashMap<>();
+            result.put("status", "success");
             result.put("source", "computation");
             result.put("dataType", "processed");
             result.put("rawData", rawData);

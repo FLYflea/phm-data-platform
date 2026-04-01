@@ -387,18 +387,41 @@ public class StorageController {
     /**
      * P1: 创建部件间关系
      * 
-     * @param fromComponentId 源组件ID
-     * @param toComponentId 目标组件ID
-     * @param relationType 关系类型（COMPONENT_RELATED等）
-     * @param properties 关系属性（可选）
+     * 支持两种调用方式：
+     * 1. Query参数方式（前端调用）: POST /graph/relation?fromComponentId=x&toComponentId=y&relationType=z
+     * 2. Body方式（微服务间调用）: POST /graph/relation  body: {"fromComponentId":"x","toComponentId":"y","relationType":"z"}
+     * 
      * @return 统一响应格式 { "status": "success" }
      */
     @PostMapping("/graph/relation")
     public Map<String, Object> createRelation(
-            @RequestParam(name = "fromComponentId") String fromComponentId,
-            @RequestParam(name = "toComponentId") String toComponentId,
-            @RequestParam(name = "relationType") String relationType,
-            @RequestBody(required = false) Map<String, Object> properties) {
+            @RequestParam(name = "fromComponentId", required = false) String fromComponentIdParam,
+            @RequestParam(name = "toComponentId", required = false) String toComponentIdParam,
+            @RequestParam(name = "relationType", required = false) String relationTypeParam,
+            @RequestBody(required = false) Map<String, Object> body) {
+        
+        // 优先从body读取，fallback到query参数
+        String fromComponentId = fromComponentIdParam;
+        String toComponentId = toComponentIdParam;
+        String relationType = relationTypeParam;
+        Map<String, Object> properties = null;
+        
+        if (body != null) {
+            if (fromComponentId == null && body.containsKey("fromComponentId")) {
+                fromComponentId = (String) body.get("fromComponentId");
+            }
+            if (toComponentId == null && body.containsKey("toComponentId")) {
+                toComponentId = (String) body.get("toComponentId");
+            }
+            if (relationType == null && body.containsKey("relationType")) {
+                relationType = (String) body.get("relationType");
+            }
+            if (body.containsKey("properties")) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> props = (Map<String, Object>) body.get("properties");
+                properties = props;
+            }
+        }
         
         log.info("P1创建关系: {} -> {} [{}]", fromComponentId, toComponentId, relationType);
         
@@ -434,9 +457,14 @@ public class StorageController {
             response.put("equipment", equipment);
             response.put("components", equipment.getComponents());
             response.put("componentCount", equipment.getComponents().size());
+            
+            // 查询组件间的 RELATED_TO 关系
+            List<Map<String, Object>> relations = knowledgeGraphService.findComponentRelations(equipmentId);
+            response.put("relations", relations);
+            
             response.put("status", "success");
-            log.info("P1查询成功: 设备 {} 包含 {} 个组件", 
-                    equipmentId, equipment.getComponents().size());
+            log.info("P1查询成功: 设备 {} 包含 {} 个组件, {} 条关系", 
+                    equipmentId, equipment.getComponents().size(), relations.size());
         } else {
             response.put("status", "not_found");
             response.put("message", "设备不存在: " + equipmentId);

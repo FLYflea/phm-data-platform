@@ -77,6 +77,15 @@
             <el-menu-item index="service-visualization">
               <span>数据可视化</span>
             </el-menu-item>
+            <el-menu-item index="service-analysis">
+              <span>数据分析</span>
+            </el-menu-item>
+            <el-menu-item index="service-distribution">
+              <span>数据分发</span>
+            </el-menu-item>
+            <el-menu-item index="service-stream">
+              <span>实时数据流</span>
+            </el-menu-item>
           </el-sub-menu>
         </el-menu>
       </el-aside>
@@ -112,6 +121,15 @@
         
         <!-- 服务层 - 数据可视化 -->
         <ServiceVisualization v-else-if="activeMenu === 'service-visualization'" />
+        
+        <!-- 服务层 - 数据分析 -->
+        <ServiceAnalysis v-else-if="activeMenu === 'service-analysis'" />
+        
+        <!-- 服务层 - 数据分发 -->
+        <ServiceDistribution v-else-if="activeMenu === 'service-distribution'" />
+        
+        <!-- 服务层 - 实时数据流 -->
+        <ServiceStream v-else-if="activeMenu === 'service-stream'" />
         
         <!-- 默认页面 -->
         <div v-else class="welcome-page">

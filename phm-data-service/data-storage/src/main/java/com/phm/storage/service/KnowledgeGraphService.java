@@ -10,6 +10,7 @@ import org.neo4j.driver.Driver;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Session;
 import org.neo4j.driver.types.Node;
+import org.neo4j.driver.types.Relationship;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -216,6 +217,49 @@ public class KnowledgeGraphService {
         } catch (Exception e) {
             log.error("P1查询设备失败: {}", e.getMessage(), e);
             return Optional.empty();
+        }
+    }
+
+    /**
+     * P1: 查询设备下组件间的 RELATED_TO 关系
+     */
+    public List<Map<String, Object>> findComponentRelations(String equipmentId) {
+        if (equipmentId == null) {
+            return Collections.emptyList();
+        }
+
+        log.debug("P1查询组件间关系: equipmentId={}", equipmentId);
+
+        try (Session session = neo4jDriver.session()) {
+            return session.executeRead(tx -> {
+                var result = tx.run(
+                    "MATCH (e:Equipment {equipmentId: $eqId})-[:HAS_COMPONENT]->(c1:Component) " +
+                    "MATCH (c1)-[r:RELATED_TO]->(c2:Component) " +
+                    "RETURN c1.name as source, c1.componentId as sourceId, " +
+                    "       type(r) as type, r.type as relationType, " +
+                    "       c2.name as target, c2.componentId as targetId",
+                    parameters("eqId", equipmentId)
+                );
+
+                List<Map<String, Object>> relations = new ArrayList<>();
+                while (result.hasNext()) {
+                    Record record = result.next();
+                    Map<String, Object> rel = new HashMap<>();
+                    rel.put("source", record.get("source").asString());
+                    rel.put("sourceId", record.get("sourceId").asString());
+                    rel.put("target", record.get("target").asString());
+                    rel.put("targetId", record.get("targetId").asString());
+                    rel.put("type", record.get("relationType").isNull()
+                            ? record.get("type").asString()
+                            : record.get("relationType").asString());
+                    relations.add(rel);
+                }
+                log.info("P1查询到 {} 条组件间关系", relations.size());
+                return relations;
+            });
+        } catch (Exception e) {
+            log.error("P1查询组件间关系失败: {}", e.getMessage(), e);
+            return Collections.emptyList();
         }
     }
 
@@ -475,6 +519,25 @@ public class KnowledgeGraphService {
         if (eNode.containsKey("description")) {
             equipment.setDescription(eNode.get("description").asString());
         }
+
+        // 解析组件列表
+        if (record.containsKey("components") && !record.get("components").isNull()) {
+            org.neo4j.driver.Value compValues = record.get("components");
+            for (int i = 0; i < compValues.size(); i++) {
+                org.neo4j.driver.Value val = compValues.get(i);
+                if (val != null && !val.isNull()) {
+                    Node cNode = val.asNode();
+                    ComponentNode comp = new ComponentNode();
+                    comp.setId(cNode.id());
+                    comp.setComponentId(cNode.get("componentId").asString());
+                    comp.setName(cNode.containsKey("name") ? cNode.get("name").asString() : null);
+                    comp.setType(cNode.containsKey("type") ? cNode.get("type").asString() : null);
+                    comp.setDescription(cNode.containsKey("description") ? cNode.get("description").asString() : null);
+                    equipment.addComponent(comp);
+                }
+            }
+        }
+
         return equipment;
     }
 
