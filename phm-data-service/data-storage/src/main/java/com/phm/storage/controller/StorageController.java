@@ -252,6 +252,52 @@ public class StorageController {
     }
     
     /**
+     * 获取所有设备ID列表（用于前端下拉框动态加载）
+     */
+    @GetMapping("/timeseries/devices")
+    public Map<String, Object> getAllDevices() {
+        log.info("获取所有设备ID列表");
+        List<String> deviceIds = timeSeriesService.getAllDeviceIds();
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("devices", deviceIds);
+        response.put("count", deviceIds.size());
+        response.put("status", "success");
+        return response;
+    }
+    
+    /**
+     * 获取所有传感器类型列表（用于前端下拉框动态加载）
+     */
+    @GetMapping("/timeseries/sensor-types")
+    public Map<String, Object> getAllSensorTypes() {
+        log.info("获取所有传感器类型列表");
+        List<String> sensorTypes = timeSeriesService.getAllSensorTypes();
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("sensorTypes", sensorTypes);
+        response.put("count", sensorTypes.size());
+        response.put("status", "success");
+        return response;
+    }
+    
+    /**
+     * 获取指定设备的传感器类型列表
+     */
+    @GetMapping("/timeseries/sensor-types/{deviceId}")
+    public Map<String, Object> getSensorTypesByDevice(@PathVariable String deviceId) {
+        log.info("获取设备 {} 的传感器类型列表", deviceId);
+        List<String> sensorTypes = timeSeriesService.getSensorTypesByDevice(deviceId);
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("deviceId", deviceId);
+        response.put("sensorTypes", sensorTypes);
+        response.put("count", sensorTypes.size());
+        response.put("status", "success");
+        return response;
+    }
+    
+    /**
      * P0: 按设备ID和时间范围查询传感器数据
      * 
      * @param deviceId 设备ID

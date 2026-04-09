@@ -1,17 +1,20 @@
 <template>
   <div class="service-stream">
-    <h2>数据流计算服务</h2>
-    <p class="desc">服务层数据流：基于 SSE 的实时数据推送，滑动窗口统计，实时告警</p>
+    <div class="page-header">
+      <h2><el-icon><VideoPlay /></el-icon> 数据流计算服务</h2>
+      <p class="desc">服务层数据流：基于 SSE 的实时数据推送，滑动窗口统计，实时告警</p>
+    </div>
 
     <el-row :gutter="20">
       <!-- 左侧：实时数据流 -->
       <el-col :span="14">
-        <el-card>
+        <el-card shadow="hover">
           <template #header>
             <div class="card-header">
-              <span>实时数据流</span>
+              <span><el-icon><VideoPlay /></el-icon> 实时数据流</span>
               <div>
                 <el-tag :type="connected ? 'success' : 'info'" style="margin-right: 10px">
+                  <span :class="['conn-dot', connected ? 'conn-active' : '']"></span>
                   {{ connected ? '已连接' : '未连接' }}
                 </el-tag>
                 <el-button v-if="!connected" type="primary" size="small" @click="startStream">
@@ -74,10 +77,10 @@
         </el-card>
 
         <!-- 数据日志 -->
-        <el-card class="section-card">
+        <el-card shadow="hover" class="section-card">
           <template #header>
             <div class="card-header">
-              <span>数据接收日志</span>
+              <span><el-icon><Document /></el-icon> 数据接收日志</span>
               <el-tag type="info">最近 {{ streamLog.length }} 条</el-tag>
             </div>
           </template>
@@ -105,10 +108,10 @@
 
       <!-- 右侧：窗口统计 -->
       <el-col :span="10">
-        <el-card>
+        <el-card shadow="hover">
           <template #header>
             <div class="card-header">
-              <span>滑动窗口统计</span>
+              <span><el-icon><DataLine /></el-icon> 滑动窗口统计</span>
               <el-button size="small" @click="loadWindowStats">刷新</el-button>
             </div>
           </template>
@@ -146,10 +149,10 @@
         </el-card>
 
         <!-- 连接信息 -->
-        <el-card class="section-card">
+        <el-card shadow="hover" class="section-card">
           <template #header>
             <div class="card-header">
-              <span>连接信息</span>
+              <span><el-icon><Connection /></el-icon> 连接信息</span>
               <el-button size="small" @click="loadConnections">刷新</el-button>
             </div>
           </template>
@@ -175,6 +178,7 @@
 <script setup>
 import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
+import { VideoPlay, Document, DataLine, Connection } from '@element-plus/icons-vue'
 import { serviceApi } from '../../api/request'
 import * as echarts from 'echarts'
 
@@ -333,11 +337,24 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .service-stream {
-  padding: 20px;
+  padding: 0;
+}
+.page-header {
+  margin-bottom: 24px;
+}
+.page-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 600;
+  color: #1a1a2e;
 }
 .desc {
   color: #909399;
-  margin-bottom: 20px;
+  margin: 0 0 20px;
+  font-size: 14px;
 }
 .section-card {
   margin-top: 20px;
@@ -346,6 +363,30 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+.card-header span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+.conn-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #909399;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.conn-active {
+  background: #67c23a;
+  box-shadow: 0 0 6px rgba(103, 194, 58, 0.6);
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }
 .chart-container {
   width: 100%;

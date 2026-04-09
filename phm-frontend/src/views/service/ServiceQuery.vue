@@ -1,10 +1,17 @@
 <template>
   <div class="service-query">
-    <h2>统一数据查询服务</h2>
-    <p class="desc">服务层被动数据查询：统一接口支持时序、图谱、文本多模态数据查询</p>
+    <div class="page-header">
+      <h2><el-icon><Search /></el-icon> 统一数据查询服务</h2>
+      <p class="desc">服务层被动数据查询：统一接口支持时序、图谱、文本多模态数据查询</p>
+    </div>
     
-    <el-card>
-      <template #header>统一查询接口</template>
+    <el-card shadow="hover">
+      <template #header>
+        <div class="card-header">
+          <span><el-icon><Search /></el-icon> 统一查询接口</span>
+          <el-tag type="primary" effect="dark" round size="small">多模态</el-tag>
+        </div>
+      </template>
       <el-form :model="queryForm" label-width="100px">
         <el-form-item label="查询类型">
           <el-radio-group v-model="queryForm.type">
@@ -62,10 +69,10 @@
     </el-card>
 
     <!-- 时序数据结果展示 -->
-    <el-card v-if="resultType === 'timeseries' && timeseriesData.length > 0" class="result-card">
+    <el-card v-if="resultType === 'timeseries' && timeseriesData.length > 0" shadow="hover" class="result-card">
       <template #header>
         <div class="card-header">
-          <span>查询结果 — 时序数据</span>
+          <span><el-icon><DataLine /></el-icon> 查询结果 — 时序数据</span>
           <el-tag type="success">{{ timeseriesData.length }} 条记录</el-tag>
         </div>
       </template>
@@ -90,10 +97,10 @@
     </el-card>
 
     <!-- 处理后数据结果 -->
-    <el-card v-if="resultType === 'processed'" class="result-card">
+    <el-card v-if="resultType === 'processed'" shadow="hover" class="result-card">
       <template #header>
         <div class="card-header">
-          <span>查询结果 — 处理后数据（含特征）</span>
+          <span><el-icon><TrendCharts /></el-icon> 查询结果 — 处理后数据（含特征）</span>
           <el-tag type="success">{{ processedRawData.length }} 条原始记录</el-tag>
         </div>
       </template>
@@ -127,10 +134,10 @@
     </el-card>
 
     <!-- 图谱数据结果 -->
-    <el-card v-if="resultType === 'graph'" class="result-card">
+    <el-card v-if="resultType === 'graph'" shadow="hover" class="result-card">
       <template #header>
         <div class="card-header">
-          <span>查询结果 — 知识图谱</span>
+          <span><el-icon><Share /></el-icon> 查询结果 — 知识图谱</span>
           <el-tag type="success">{{ graphNodes.length }} 个节点, {{ graphRelations.length }} 条关系</el-tag>
         </div>
       </template>
@@ -168,7 +175,7 @@
     </el-card>
 
     <!-- 空状态 -->
-    <el-card v-if="hasSearched && resultType === 'empty'" class="result-card">
+    <el-card v-if="hasSearched && resultType === 'empty'" shadow="hover" class="result-card">
       <el-empty description="查询无结果，请调整条件后重试" />
     </el-card>
   </div>
@@ -177,6 +184,7 @@
 <script setup>
 import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Search, DataLine, TrendCharts, Share } from '@element-plus/icons-vue'
 import { serviceApi, storageApi } from '../../api/request'
 
 const loading = ref(false)
@@ -314,11 +322,24 @@ const performQuery = async () => {
 
 <style scoped>
 .service-query {
-  padding: 20px;
+  padding: 0;
+}
+.page-header {
+  margin-bottom: 24px;
+}
+.page-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 600;
+  color: #1a1a2e;
 }
 .desc {
   color: #909399;
-  margin-bottom: 20px;
+  margin: 0;
+  font-size: 14px;
 }
 .result-card {
   margin-top: 20px;
@@ -327,6 +348,12 @@ const performQuery = async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+.card-header span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
 }
 .features-section {
   margin-bottom: 15px;

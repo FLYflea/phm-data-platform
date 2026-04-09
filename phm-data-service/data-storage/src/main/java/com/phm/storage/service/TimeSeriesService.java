@@ -208,4 +208,31 @@ public class TimeSeriesService {
     public long countByTimeRange(String deviceId, Instant start, Instant end) {
         return queryByTimeRange(deviceId, start, end).size();
     }
+    
+    /**
+     * 获取所有设备ID列表（用于前端下拉框）
+     */
+    public List<String> getAllDeviceIds() {
+        List<String> deviceIds = sensorTimeSeriesRepository.findDistinctDeviceIds();
+        log.info("获取设备列表，共 {} 个设备", deviceIds.size());
+        return deviceIds;
+    }
+    
+    /**
+     * 获取所有传感器类型列表（用于前端下拉框）
+     */
+    public List<String> getAllSensorTypes() {
+        List<String> sensorTypes = sensorTimeSeriesRepository.findDistinctSensorTypes();
+        log.info("获取传感器类型列表，共 {} 种类型", sensorTypes.size());
+        return sensorTypes;
+    }
+    
+    /**
+     * 获取指定设备的传感器类型列表
+     */
+    public List<String> getSensorTypesByDevice(String deviceId) {
+        List<String> sensorTypes = sensorTimeSeriesRepository.findDistinctSensorTypesByDeviceId(deviceId);
+        log.info("获取设备 {} 的传感器类型，共 {} 种", deviceId, sensorTypes.size());
+        return sensorTypes;
+    }
 }

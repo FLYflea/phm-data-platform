@@ -43,6 +43,9 @@ public class SensorController {
     @Value("${computation.service.url:http://localhost:8102}")
     private String computationServiceUrl;
 
+    @Value("${storage.service.url:http://localhost:8103}")
+    private String storageServiceUrl;
+
     // ==================== 传感器数据接口 ====================
 
     /**
@@ -336,36 +339,27 @@ public class SensorController {
             return ResponseEntity.status(500).body(buildErrorResponse("CSV文件读取异常: " + e.getMessage()));
         }
 
-        // 批量转发到计算层
+        // 批量保存到存储层（CSV批量导入直接存储，不走pipeline计算流程）
         int storedCount = 0;
         if (!rawDataList.isEmpty()) {
             try {
-                // 分批发送，每批1000条
-                int batchSize = 1000;
-                for (int i = 0; i < rawDataList.size(); i += batchSize) {
-                    int end = Math.min(i + batchSize, rawDataList.size());
-                    List<Map<String, Object>> batch = rawDataList.subList(i, end);
-                    
-                    String pipelineUrl = computationServiceUrl + "/computation/pipeline/full";
-                    Map<String, Object> pipelineRequest = new HashMap<>();
-                    pipelineRequest.put("rawData", batch);
-                    pipelineRequest.put("deviceId", deviceId);
-                    pipelineRequest.put("sensorType", "CSV_IMPORT");
-                    pipelineRequest.put("skipFeatureExtraction", true); // 大批量导入时跳过特征提取
-                    
-                    @SuppressWarnings("unchecked")
-                    Map<String, Object> response = restTemplate.postForObject(pipelineUrl, pipelineRequest, Map.class);
-                    
-                    if (response != null && "success".equals(response.get("status"))) {
-                        storedCount += batch.size();
-                    } else {
-                        log.warn("批次{}-{}发送失败", i, end);
+                String saveUrl = storageServiceUrl + "/storage/timeseries/save";
+                
+                for (Map<String, Object> dataMap : rawDataList) {
+                    try {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> response = restTemplate.postForObject(saveUrl, dataMap, Map.class);
+                        if (response != null && "success".equals(response.get("status"))) {
+                            storedCount++;
+                        }
+                    } catch (Exception e) {
+                        log.warn("单条数据保存失败: {}", e.getMessage());
                     }
                 }
-                log.info("CSV数据已转发到计算层，共{}条", storedCount);
+                log.info("CSV数据已直接保存到存储层，共{}条", storedCount);
             } catch (Exception e) {
-                log.error("数据转发到计算层失败: {}", e.getMessage(), e);
-                errors.add("数据转发失败: " + e.getMessage());
+                log.error("数据保存到存储层失败: {}", e.getMessage(), e);
+                errors.add("数据保存失败: " + e.getMessage());
             }
         }
 

@@ -1,24 +1,25 @@
 <template>
   <div class="computation-feature">
-    <h2>特征工程服务</h2>
-    <p class="desc">计算层核心功能：时域/频域/时频域（小波变换）特征提取</p>
+    <div class="page-header">
+      <h2><el-icon><TrendCharts /></el-icon> 特征工程服务</h2>
+      <p class="desc">计算层核心功能：时域/频域/时频域（小波变换）特征提取</p>
+    </div>
     
-    <el-card>
-      <template #header>数据输入</template>
+    <el-card shadow="hover">
+      <template #header>
+        <div class="card-header">
+          <span><el-icon><DataLine /></el-icon> 数据输入</span>
+        </div>
+      </template>
       <el-form :model="form" label-width="120px">
         <el-form-item label="设备ID">
           <el-select v-model="form.deviceId" placeholder="选择设备" style="width: 150px">
-            <el-option label="设备 EQ-001" value="EQ-001" />
-            <el-option label="设备 EQ-002" value="EQ-002" />
-            <el-option label="设备 EQ-003" value="EQ-003" />
+            <el-option v-for="device in deviceList" :key="device" :label="device" :value="device" />
           </el-select>
         </el-form-item>
         <el-form-item label="传感器类型">
           <el-select v-model="form.sensorType" style="width: 140px">
-            <el-option label="温度" value="temperature" />
-            <el-option label="振动" value="vibration" />
-            <el-option label="压力" value="pressure" />
-            <el-option label="电流" value="current" />
+            <el-option v-for="type in sensorTypeList" :key="type" :label="type" :value="type" />
           </el-select>
         </el-form-item>
         <el-form-item label="数据值">
@@ -113,8 +114,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { TrendCharts, DataLine } from '@element-plus/icons-vue'
 import { computationApi, storageApi } from '../../api/request'
 
 const loadingAll = ref(false)
@@ -128,10 +130,42 @@ const timeFrequencyFeatures = ref(null)
 
 const hasResults = computed(() => timeDomainFeatures.value || frequencyDomainFeatures.value || timeFrequencyFeatures.value)
 
+// 动态设备和传感器类型列表
+const deviceList = ref([])
+const sensorTypeList = ref([])
+
 const form = reactive({
-  deviceId: 'EQ-001',
-  sensorType: 'vibration',
+  deviceId: '',
+  sensorType: '',
   values: '12.5, 13.8, 11.2, 15.6, 14.1, 10.8, 16.3, 13.5, 12.0, 14.7, 11.5, 15.2, 13.0, 12.8, 14.5, 11.9'
+})
+
+// 加载设备和传感器类型列表
+const loadDevicesAndSensorTypes = async () => {
+  try {
+    const [devicesRes, sensorTypesRes] = await Promise.all([
+      storageApi.getAllDevices(),
+      storageApi.getAllSensorTypes()
+    ])
+    deviceList.value = devicesRes.devices || []
+    sensorTypeList.value = sensorTypesRes.sensorTypes || []
+    if (deviceList.value.length > 0 && !form.deviceId) {
+      form.deviceId = deviceList.value[0]
+    }
+    if (sensorTypeList.value.length > 0 && !form.sensorType) {
+      form.sensorType = sensorTypeList.value[0]
+    }
+  } catch (e) {
+    console.warn('加载设备/传感器列表失败，使用默认值', e)
+    deviceList.value = ['EQ-001', 'EQ-002', 'EQ-003']
+    sensorTypeList.value = ['temperature', 'vibration', 'pressure', 'current']
+    form.deviceId = 'EQ-001'
+    form.sensorType = 'vibration'
+  }
+}
+
+onMounted(() => {
+  loadDevicesAndSensorTypes()
 })
 
 // 特征中英文名映射
@@ -257,12 +291,42 @@ const extractAll = async () => {
 
 <style scoped>
 .computation-feature {
-  padding: 20px;
+  padding: 0;
 }
+
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
 .desc {
   color: #909399;
-  margin-bottom: 20px;
+  margin: 0;
+  font-size: 14px;
 }
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-header span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
 .result-card {
   margin-top: 20px;
 }

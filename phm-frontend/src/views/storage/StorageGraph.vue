@@ -1,24 +1,40 @@
 <template>
   <div class="storage-graph">
-    <h2>知识图谱查询</h2>
-    <p class="desc">存储层核心功能：图数据存储与查询（Neo4j）</p>
+    <div class="page-header">
+      <h2><el-icon><Share /></el-icon> 知识图谱查询</h2>
+      <p class="desc">存储层核心功能：图数据存储与查询（Neo4j）</p>
+    </div>
 
     <!-- 图谱统计卡片 -->
     <el-row :gutter="15" class="stats-row">
       <el-col :span="8">
-        <el-statistic title="设备总数" :value="graphStats.equipmentCount || 0" />
+        <el-card shadow="hover" class="stat-card stat-card-blue">
+          <div class="stat-title"><el-icon><Monitor /></el-icon> 设备总数</div>
+          <div class="stat-value">{{ graphStats.equipmentCount || 0 }}</div>
+        </el-card>
       </el-col>
       <el-col :span="8">
-        <el-statistic title="组件总数" :value="graphStats.componentCount || 0" />
+        <el-card shadow="hover" class="stat-card stat-card-green">
+          <div class="stat-title"><el-icon><Cpu /></el-icon> 组件总数</div>
+          <div class="stat-value">{{ graphStats.componentCount || 0 }}</div>
+        </el-card>
       </el-col>
       <el-col :span="8">
-        <el-statistic title="关系总数" :value="graphStats.relationCount || 0" />
+        <el-card shadow="hover" class="stat-card stat-card-orange">
+          <div class="stat-title"><el-icon><Connection /></el-icon> 关系总数</div>
+          <div class="stat-value">{{ graphStats.relationCount || 0 }}</div>
+        </el-card>
       </el-col>
     </el-row>
 
     <!-- 查询条件 -->
-    <el-card>
-      <template #header>查询条件</template>
+    <el-card shadow="hover">
+      <template #header>
+        <div class="card-header">
+          <span><el-icon><Search /></el-icon> 查询条件</span>
+          <el-tag type="primary" effect="dark" round size="small">Neo4j</el-tag>
+        </div>
+      </template>
       <el-form :model="queryForm" inline>
         <el-form-item label="设备ID">
           <el-input v-model="queryForm.equipmentId" placeholder="EQ-001" style="width: 150px" />
@@ -32,7 +48,7 @@
     </el-card>
 
     <!-- 设备列表（查询所有设备时显示） -->
-    <el-card v-if="allEquipments.length > 0 && !equipment" class="result-card">
+    <el-card v-if="allEquipments.length > 0 && !equipment" shadow="hover" class="result-card">
       <template #header>
         <div class="card-header">
           <span>设备列表</span>
@@ -54,10 +70,10 @@
     </el-card>
 
     <!-- 设备信息 -->
-    <el-card v-if="equipment" class="result-card">
+    <el-card v-if="equipment" shadow="hover" class="result-card">
       <template #header>
         <div class="card-header">
-          <span>设备信息</span>
+          <span><el-icon><Monitor /></el-icon> 设备信息</span>
           <el-tag type="success">{{ equipment.equipmentId }}</el-tag>
         </div>
       </template>
@@ -70,10 +86,10 @@
     </el-card>
 
     <!-- 图谱可视化 (ECharts 力导向图) -->
-    <el-card v-if="equipment" class="result-card">
+    <el-card v-if="equipment" shadow="hover" class="result-card">
       <template #header>
         <div class="card-header">
-          <span>知识图谱可视化</span>
+          <span><el-icon><Share /></el-icon> 知识图谱可视化</span>
           <el-tag type="info">力导向关系图</el-tag>
         </div>
       </template>
@@ -81,10 +97,10 @@
     </el-card>
 
     <!-- 组件列表 -->
-    <el-card v-if="components.length > 0" class="result-card">
+    <el-card v-if="components.length > 0" shadow="hover" class="result-card">
       <template #header>
         <div class="card-header">
-          <span>组件列表</span>
+          <span><el-icon><Cpu /></el-icon> 组件列表</span>
           <el-tag type="primary">{{ components.length }} 个组件</el-tag>
         </div>
       </template>
@@ -102,8 +118,13 @@
     </el-card>
 
     <!-- 关系查询 -->
-    <el-card v-if="showRelationQuery" class="result-card">
-      <template #header>组件关系查询</template>
+    <el-card v-if="showRelationQuery" shadow="hover" class="result-card">
+      <template #header>
+        <div class="card-header">
+          <span><el-icon><Connection /></el-icon> 组件关系查询</span>
+          <el-tag type="warning" effect="dark" round size="small">路径分析</el-tag>
+        </div>
+      </template>
       <el-form :model="relationForm" inline>
         <el-form-item label="起始组件">
           <el-select v-model="relationForm.startId" placeholder="选择组件" style="width: 180px">
@@ -135,7 +156,7 @@
     </el-card>
 
     <!-- 路径结果 -->
-    <el-card v-if="paths.length > 0" class="result-card">
+    <el-card v-if="paths.length > 0" shadow="hover" class="result-card">
       <template #header>
         <div class="card-header">
           <span>关联路径</span>
@@ -166,6 +187,7 @@
 <script setup>
 import { ref, reactive, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Share, Monitor, Cpu, Connection, Search } from '@element-plus/icons-vue'
 import { storageApi } from '../../api/request'
 import * as echarts from 'echarts'
 
@@ -440,15 +462,48 @@ const queryPath = async () => {
 
 <style scoped>
 .storage-graph {
-  padding: 20px;
+  padding: 0;
+}
+.page-header {
+  margin-bottom: 24px;
+}
+.page-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 600;
+  color: #1a1a2e;
 }
 .desc {
   color: #909399;
-  margin-bottom: 20px;
+  margin: 0;
+  font-size: 14px;
 }
 .stats-row {
   margin-bottom: 20px;
+}
+.stat-card {
   text-align: center;
+  border-left: 3px solid #409eff;
+}
+.stat-card-blue { border-left-color: #409eff; }
+.stat-card-green { border-left-color: #67c23a; }
+.stat-card-orange { border-left-color: #e6a23c; }
+.stat-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #909399;
+  margin-bottom: 8px;
+}
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #303133;
 }
 .result-card {
   margin-top: 20px;
@@ -457,6 +512,12 @@ const queryPath = async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+.card-header span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
 }
 .graph-chart {
   height: 450px;

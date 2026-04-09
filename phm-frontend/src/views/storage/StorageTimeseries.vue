@@ -1,25 +1,26 @@
 <template>
   <div class="storage-timeseries">
-    <h2>时序数据查询</h2>
-    <p class="desc">存储层核心功能：多维时序数据存储与查询（列分解存储模型）</p>
+    <div class="page-header">
+      <h2><el-icon><DataLine /></el-icon> 时序数据查询</h2>
+      <p class="desc">存储层核心功能：多维时序数据存储与查询（列分解存储模型）</p>
+    </div>
 
-    <el-card>
-      <template #header>查询条件</template>
+    <el-card shadow="hover">
+      <template #header>
+        <div class="card-header">
+          <span><el-icon><Search /></el-icon> 查询条件</span>
+        </div>
+      </template>
       <el-form :model="queryForm" inline>
         <el-form-item label="设备ID">
           <el-select v-model="queryForm.deviceId" placeholder="选择设备" style="width: 150px">
-            <el-option label="设备 EQ-001" value="EQ-001" />
-            <el-option label="设备 EQ-002" value="EQ-002" />
-            <el-option label="设备 EQ-003" value="EQ-003" />
+            <el-option v-for="device in deviceList" :key="device" :label="device" :value="device" />
           </el-select>
         </el-form-item>
         <el-form-item label="传感器类型">
           <el-select v-model="queryForm.sensorType" placeholder="全部" clearable style="width: 150px">
             <el-option label="全部" value="" />
-            <el-option label="温度" value="temperature" />
-            <el-option label="振动" value="vibration" />
-            <el-option label="压力" value="pressure" />
-            <el-option label="电流" value="current" />
+            <el-option v-for="type in sensorTypeList" :key="type" :label="type" :value="type" />
           </el-select>
         </el-form-item>
         <el-form-item label="开始时间">
@@ -139,8 +140,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, nextTick, onBeforeUnmount } from 'vue'
+import { ref, reactive, computed, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { ElMessage } from 'element-plus'
+import { DataLine, Search } from '@element-plus/icons-vue'
 import { storageApi } from '../../api/request'
 import * as echarts from 'echarts'
 
@@ -151,6 +153,10 @@ const aggregations = ref([])
 const chartRef = ref(null)
 let chart = null
 
+// 动态设备和传感器类型列表
+const deviceList = ref([])
+const sensorTypeList = ref([])
+
 // 格式化为本地时间字符串 YYYY-MM-DDTHH:mm:ss（与 date-picker value-format 一致）
 const formatLocalTime = (date) => {
   const pad = (n) => String(n).padStart(2, '0')
@@ -158,10 +164,35 @@ const formatLocalTime = (date) => {
 }
 
 const queryForm = reactive({
-  deviceId: 'EQ-001',
+  deviceId: '',
   sensorType: '',
   startTime: formatLocalTime(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)),
   endTime: formatLocalTime(new Date())
+})
+
+// 加载设备和传感器类型列表
+const loadDevicesAndSensorTypes = async () => {
+  try {
+    const [devicesRes, sensorTypesRes] = await Promise.all([
+      storageApi.getAllDevices(),
+      storageApi.getAllSensorTypes()
+    ])
+    deviceList.value = devicesRes.devices || []
+    sensorTypeList.value = sensorTypesRes.sensorTypes || []
+    // 设置默认值
+    if (deviceList.value.length > 0 && !queryForm.deviceId) {
+      queryForm.deviceId = deviceList.value[0]
+    }
+  } catch (e) {
+    console.warn('加载设备/传感器列表失败，使用默认值', e)
+    deviceList.value = ['EQ-001', 'EQ-002', 'EQ-003']
+    sensorTypeList.value = ['temperature', 'vibration', 'pressure', 'current']
+    queryForm.deviceId = 'EQ-001'
+  }
+}
+
+onMounted(() => {
+  loadDevicesAndSensorTypes()
 })
 
 // 统计计算
@@ -292,12 +323,42 @@ const renderChart = () => {
 
 <style scoped>
 .storage-timeseries {
-  padding: 20px;
+  padding: 0;
 }
+
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
 .desc {
   color: #909399;
-  margin-bottom: 20px;
+  margin: 0;
+  font-size: 14px;
 }
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-header span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
 .stats-row {
   margin-top: 20px;
   text-align: center;

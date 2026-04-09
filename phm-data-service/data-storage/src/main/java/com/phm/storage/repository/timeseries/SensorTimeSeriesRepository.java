@@ -116,4 +116,24 @@ public interface SensorTimeSeriesRepository extends JpaRepository<SensorTimeSeri
             @Param("deviceIds") List<String> deviceIds,
             @Param("start") Instant start,
             @Param("end") Instant end);
+    
+    /**
+     * 获取所有不重复的设备ID列表
+     * 用于前端下拉框动态加载
+     */
+    @Query("SELECT DISTINCT s.deviceId FROM SensorTimeSeries s ORDER BY s.deviceId")
+    List<String> findDistinctDeviceIds();
+    
+    /**
+     * 获取所有不重复的传感器类型列表
+     * 用于前端下拉框动态加载
+     */
+    @Query("SELECT DISTINCT s.sensorType FROM SensorTimeSeries s ORDER BY s.sensorType")
+    List<String> findDistinctSensorTypes();
+    
+    /**
+     * 获取指定设备的所有传感器类型
+     */
+    @Query("SELECT DISTINCT s.sensorType FROM SensorTimeSeries s WHERE s.deviceId = :deviceId ORDER BY s.sensorType")
+    List<String> findDistinctSensorTypesByDeviceId(@Param("deviceId") String deviceId);
 }

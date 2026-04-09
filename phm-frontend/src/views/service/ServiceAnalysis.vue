@@ -1,11 +1,18 @@
 <template>
   <div class="service-analysis">
-    <h2>多维分析服务</h2>
-    <p class="desc">服务层多维分析：按设备、传感器、时间等维度聚合分析，趋势检测与异常识别</p>
+    <div class="page-header">
+      <h2><el-icon><DataAnalysis /></el-icon> 多维分析服务</h2>
+      <p class="desc">服务层多维分析：按设备、传感器、时间等维度聚合分析，趋势检测与异常识别</p>
+    </div>
 
     <!-- 查询配置 -->
-    <el-card>
-      <template #header>分析配置</template>
+    <el-card shadow="hover">
+      <template #header>
+        <div class="card-header">
+          <span><el-icon><DataAnalysis /></el-icon> 分析配置</span>
+          <el-tag type="primary" effect="dark" round size="small">多维度</el-tag>
+        </div>
+      </template>
       <el-form :model="queryForm" inline>
         <el-form-item label="设备ID">
           <el-select v-model="queryForm.deviceId" placeholder="选择设备" style="width: 150px">
@@ -41,10 +48,10 @@
     </el-card>
 
     <!-- 统计概览 -->
-    <el-card v-if="analysisLoaded" class="section-card">
+    <el-card v-if="analysisLoaded" shadow="hover" class="section-card">
       <template #header>
         <div class="card-header">
-          <span>统计概览</span>
+          <span><el-icon><TrendCharts /></el-icon> 统计概览</span>
           <el-tag type="success">{{ stats.count }} 条数据, {{ stats.hourCount }} 个时段</el-tag>
         </div>
       </template>
@@ -77,10 +84,10 @@
     </el-card>
 
     <!-- 趋势分析图 -->
-    <el-card v-if="analysisLoaded" class="section-card">
+    <el-card v-if="analysisLoaded" shadow="hover" class="section-card">
       <template #header>
         <div class="card-header">
-          <span>趋势分析</span>
+          <span><el-icon><DataLine /></el-icon> 趋势分析</span>
           <el-tag :type="trendType">{{ trendLabel }}</el-tag>
         </div>
       </template>
@@ -88,16 +95,21 @@
     </el-card>
 
     <!-- 数据分布直方图 -->
-    <el-card v-if="analysisLoaded" class="section-card">
-      <template #header>分布分析 — 直方图</template>
+    <el-card v-if="analysisLoaded" shadow="hover" class="section-card">
+      <template #header>
+        <div class="card-header">
+          <span><el-icon><Histogram /></el-icon> 分布分析 — 直方图</span>
+          <el-tag type="info" effect="dark" round size="small">异常区间红色标记</el-tag>
+        </div>
+      </template>
       <div ref="histChartRef" class="chart-container"></div>
     </el-card>
 
     <!-- 异常检测结果 -->
-    <el-card v-if="analysisLoaded && anomalies.length > 0" class="section-card">
+    <el-card v-if="analysisLoaded && anomalies.length > 0" shadow="hover" class="section-card">
       <template #header>
         <div class="card-header">
-          <span>异常检测</span>
+          <span><el-icon><WarningFilled /></el-icon> 异常检测</span>
           <el-tag type="danger">{{ anomalies.length }} 个异常点</el-tag>
         </div>
       </template>
@@ -124,7 +136,7 @@
       </el-table>
     </el-card>
 
-    <el-card v-if="!loading && !analysisLoaded && hasSearched" class="section-card">
+    <el-card v-if="!loading && !analysisLoaded && hasSearched" shadow="hover" class="section-card">
       <el-empty description="分析无结果，请调整条件后重试" />
     </el-card>
   </div>
@@ -133,6 +145,7 @@
 <script setup>
 import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
+import { DataAnalysis, TrendCharts, DataLine, Histogram, WarningFilled } from '@element-plus/icons-vue'
 import { serviceApi } from '../../api/request'
 import * as echarts from 'echarts'
 
@@ -341,11 +354,24 @@ const renderHistChart = (values, mean, std) => {
 
 <style scoped>
 .service-analysis {
-  padding: 20px;
+  padding: 0;
+}
+.page-header {
+  margin-bottom: 24px;
+}
+.page-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 600;
+  color: #1a1a2e;
 }
 .desc {
   color: #909399;
-  margin-bottom: 20px;
+  margin: 0;
+  font-size: 14px;
 }
 .section-card {
   margin-top: 20px;
@@ -354,6 +380,12 @@ const renderHistChart = (values, mean, std) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+.card-header span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
 }
 .chart-container {
   width: 100%;

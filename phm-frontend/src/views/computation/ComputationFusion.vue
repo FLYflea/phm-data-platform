@@ -1,31 +1,29 @@
 <template>
   <div class="computation-fusion">
-    <h2>数据融合服务</h2>
-    <p class="desc">计算层核心功能：PDA/JPDA概率数据关联融合算法</p>
+    <div class="page-header">
+      <h2><el-icon><Connection /></el-icon> 数据融合服务</h2>
+      <p class="desc">计算层核心功能：PDA/JPDA概率数据关联融合算法</p>
+    </div>
 
     <el-row :gutter="20">
       <!-- 数据源A -->
       <el-col :span="12">
-        <el-card>
+        <el-card shadow="hover">
           <template #header>
             <div class="card-header">
-              <span>数据源 A</span>
-              <el-tag type="primary">传感器1</el-tag>
+              <span><el-icon><DataLine /></el-icon> 数据源 A</span>
+              <el-tag type="primary" effect="dark" round size="small">传感器1</el-tag>
             </div>
           </template>
           <el-form :model="sourceA" label-width="100px">
             <el-form-item label="设备ID">
               <el-select v-model="sourceA.deviceId" placeholder="选择设备" style="width: 150px">
-                <el-option label="设备 EQ-001" value="EQ-001" />
-                <el-option label="设备 EQ-002" value="EQ-002" />
-                <el-option label="设备 EQ-003" value="EQ-003" />
+                <el-option v-for="device in deviceList" :key="device" :label="device" :value="device" />
               </el-select>
             </el-form-item>
             <el-form-item label="传感器类型">
               <el-select v-model="sourceA.sensorType" style="width: 140px">
-                <el-option label="温度" value="temperature" />
-                <el-option label="振动" value="vibration" />
-                <el-option label="压力" value="pressure" />
+                <el-option v-for="type in sensorTypeList" :key="type" :label="type" :value="type" />
               </el-select>
             </el-form-item>
             <el-form-item label="数据值">
@@ -59,16 +57,12 @@
           <el-form :model="sourceB" label-width="100px">
             <el-form-item label="设备ID">
               <el-select v-model="sourceB.deviceId" placeholder="选择设备" style="width: 150px">
-                <el-option label="设备 EQ-001" value="EQ-001" />
-                <el-option label="设备 EQ-002" value="EQ-002" />
-                <el-option label="设备 EQ-003" value="EQ-003" />
+                <el-option v-for="device in deviceList" :key="device" :label="device" :value="device" />
               </el-select>
             </el-form-item>
             <el-form-item label="传感器类型">
               <el-select v-model="sourceB.sensorType" style="width: 140px">
-                <el-option label="温度" value="temperature" />
-                <el-option label="振动" value="vibration" />
-                <el-option label="压力" value="pressure" />
+                <el-option v-for="type in sensorTypeList" :key="type" :label="type" :value="type" />
               </el-select>
             </el-form-item>
             <el-form-item label="数据值">
@@ -194,7 +188,7 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Connection, DataLine } from '@element-plus/icons-vue'
 import { computationApi, storageApi } from '../../api/request'
@@ -206,16 +200,53 @@ const loadingB = ref(false)
 const sourceAInfo = ref(null)
 const sourceBInfo = ref(null)
 
+// 动态设备和传感器类型列表
+const deviceList = ref([])
+const sensorTypeList = ref([])
+
 const sourceA = reactive({
-  deviceId: 'EQ-001',
-  sensorType: 'temperature',
+  deviceId: '',
+  sensorType: '',
   values: '20.5, 21.3, 20.8, 22.1, 21.5, 20.9, 21.7'
 })
 
 const sourceB = reactive({
-  deviceId: 'EQ-002',
-  sensorType: 'temperature',
+  deviceId: '',
+  sensorType: '',
   values: '20.8, 21.0, 21.2, 21.8, 21.3, 21.1, 21.5'
+})
+
+// 加载设备和传感器类型列表
+const loadDevicesAndSensorTypes = async () => {
+  try {
+    const [devicesRes, sensorTypesRes] = await Promise.all([
+      storageApi.getAllDevices(),
+      storageApi.getAllSensorTypes()
+    ])
+    deviceList.value = devicesRes.devices || []
+    sensorTypeList.value = sensorTypesRes.sensorTypes || []
+    // 设置默认值
+    if (deviceList.value.length >= 1) {
+      sourceA.deviceId = deviceList.value[0]
+      sourceB.deviceId = deviceList.value.length >= 2 ? deviceList.value[1] : deviceList.value[0]
+    }
+    if (sensorTypeList.value.length > 0) {
+      sourceA.sensorType = sensorTypeList.value[0]
+      sourceB.sensorType = sensorTypeList.value[0]
+    }
+  } catch (e) {
+    console.warn('加载设备/传感器列表失败，使用默认值', e)
+    deviceList.value = ['EQ-001', 'EQ-002', 'EQ-003']
+    sensorTypeList.value = ['temperature', 'vibration', 'pressure']
+    sourceA.deviceId = 'EQ-001'
+    sourceB.deviceId = 'EQ-002'
+    sourceA.sensorType = 'temperature'
+    sourceB.sensorType = 'temperature'
+  }
+}
+
+onMounted(() => {
+  loadDevicesAndSensorTypes()
 })
 
 // 格式化百分比
@@ -347,18 +378,40 @@ const performFusion = async () => {
 
 <style scoped>
 .computation-fusion {
-  padding: 20px;
+  padding: 0;
+}
+
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 600;
+  color: #1a1a2e;
 }
 
 .desc {
   color: #909399;
-  margin-bottom: 20px;
+  margin: 0;
+  font-size: 14px;
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.card-header span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
 }
 
 .action-card {

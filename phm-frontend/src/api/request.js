@@ -106,6 +106,12 @@ export const storageApi = {
   queryTimeSeries: (params) => request.get('/storage/timeseries/query', { params }),
   // 时序数据聚合统计
   aggregateTimeSeries: (params) => request.get('/storage/timeseries/aggregate', { params }),
+  // 获取所有设备ID列表（动态下拉框）
+  getAllDevices: () => request.get('/storage/timeseries/devices'),
+  // 获取所有传感器类型列表（动态下拉框）
+  getAllSensorTypes: () => request.get('/storage/timeseries/sensor-types'),
+  // 获取指定设备的传感器类型列表
+  getSensorTypesByDevice: (deviceId) => request.get(`/storage/timeseries/sensor-types/${deviceId}`),
   // 知识图谱查询 - 设备及其组件
   queryEquipmentGraph: (equipmentId) => request.get(`/storage/graph/equipment/${equipmentId}`),
   // 知识图谱查询 - 组件关系路径

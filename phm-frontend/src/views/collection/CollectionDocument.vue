@@ -1,13 +1,20 @@
 <template>
   <div class="collection-document">
-    <h2>多模态文档解析</h2>
-    <p class="desc">采集层核心功能：设计文档、维护手册、维修记录、FMECA数据解析</p>
+    <div class="page-header">
+      <h2><el-icon><Document /></el-icon> 多模态文档解析</h2>
+      <p class="desc">采集层核心功能：设计文档、维护手册、维修记录、FMECA数据解析</p>
+    </div>
     
     <el-row :gutter="20">
       <!-- 图像文档解析 -->
       <el-col :span="12">
-        <el-card>
-          <template #header>图像文档解析（设计图纸）</template>
+        <el-card shadow="hover">
+          <template #header>
+            <div class="card-header">
+              <span><el-icon><Picture /></el-icon> 图像文档解析</span>
+              <el-tag type="primary" effect="dark" round size="small">设计图纸</el-tag>
+            </div>
+          </template>
           <el-upload
             ref="imageUploadRef"
             v-model:file-list="imageFileList"
@@ -27,7 +34,7 @@
             :loading="imageLoading"
             :disabled="imageFileList.length === 0"
           >
-            开始解析
+            {{ imageLoading ? '解析中...' : '开始解析' }}
           </el-button>
 
           <!-- 图像解析结果展示 -->
@@ -63,8 +70,13 @@
       
       <!-- 文本文档解析 -->
       <el-col :span="12">
-        <el-card>
-          <template #header>文本文档解析（维修记录/FMECA）</template>
+        <el-card shadow="hover">
+          <template #header>
+            <div class="card-header">
+              <span><el-icon><EditPen /></el-icon> 文本文档解析</span>
+              <el-tag type="success" effect="dark" round size="small">维修记录/FMECA</el-tag>
+            </div>
+          </template>
           <el-form>
             <el-form-item label="文档类型">
               <el-radio-group v-model="textType">
@@ -84,7 +96,9 @@
                 placeholder="输入维修记录或FMECA文本..."
               />
             </el-form-item>
-            <el-button type="primary" @click="parseText" :loading="textLoading">解析文本</el-button>
+            <el-button type="primary" @click="parseText" :loading="textLoading">
+              {{ textLoading ? '解析中...' : '解析文本' }}
+            </el-button>
           </el-form>
 
           <!-- 文本解析结果展示 -->
@@ -171,29 +185,42 @@
               <div style="margin-top: 15px;">
                 <el-row :gutter="15">
                   <el-col :span="6">
-                    <el-statistic title="严酷度 (S)">
-                      <template #default>
-                        <span>{{ textResult.parseResult?.severity || '-' }}</span>
+                    <div class="stat-card stat-card-severity">
+                      <div class="stat-title">严酷度 (S)</div>
+                      <div class="stat-value">
+                        {{ textResult.parseResult?.severity || '-' }}
                         <el-tag size="small" style="margin-left: 5px;">
                           {{ textResult.parseResult?.severityLevel || '' }}
                         </el-tag>
-                      </template>
-                    </el-statistic>
+                      </div>
+                    </div>
                   </el-col>
                   <el-col :span="6">
-                    <el-statistic title="发生度 (O)" :value="textResult.parseResult?.occurrence || '-'" />
+                    <div class="stat-card stat-card-occurrence">
+                      <div class="stat-title">发生度 (O)</div>
+                      <div class="stat-value">{{ textResult.parseResult?.occurrence || '-' }}</div>
+                    </div>
                   </el-col>
                   <el-col :span="6">
-                    <el-statistic title="探测度 (D)" :value="textResult.parseResult?.detection || '-'" />
+                    <div class="stat-card stat-card-detection">
+                      <div class="stat-title">探测度 (D)</div>
+                      <div class="stat-value">{{ textResult.parseResult?.detection || '-' }}</div>
+                    </div>
                   </el-col>
                   <el-col :span="6">
-                    <el-statistic title="RPN值">
-                      <template #default>
-                        <span :style="{ color: getRpnColor(textResult.parseResult?.rpn) }">
-                          {{ textResult.parseResult?.rpn || '-' }}
-                        </span>
-                      </template>
-                    </el-statistic>
+                    <div class="stat-card stat-card-rpn">
+                      <div class="stat-title">RPN值</div>
+                      <div class="stat-value" :style="{ color: getRpnColor(textResult.parseResult?.rpn) }">
+                        {{ textResult.parseResult?.rpn || '-' }}
+                      </div>
+                      <el-progress 
+                        :percentage="Math.min((textResult.parseResult?.rpn || 0) / 3, 100)" 
+                        :color="getRpnColor(textResult.parseResult?.rpn)"
+                        :show-text="false"
+                        :stroke-width="4"
+                        style="margin-top: 8px;"
+                      />
+                    </div>
                   </el-col>
                 </el-row>
               </div>
@@ -219,7 +246,7 @@
 <script setup>
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Upload } from '@element-plus/icons-vue'
+import { Upload, Document, Picture, EditPen } from '@element-plus/icons-vue'
 import { collectionApi } from '../../api/request'
 
 const textType = ref('maintenance')
@@ -333,16 +360,72 @@ const fillFmecaExample = () => {
 
 <style scoped>
 .collection-document {
-  padding: 20px;
+  padding: 0;
 }
+
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
 .desc {
   color: #909399;
-  margin-bottom: 20px;
+  margin: 0;
+  font-size: 14px;
 }
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-header span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
 .result-section {
   margin-top: 20px;
 }
+
 .summary-section {
   margin-bottom: 10px;
 }
+
+.stat-card {
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+  border: 1px solid #e8ecf1;
+}
+
+.stat-title {
+  font-size: 12px;
+  color: #909399;
+  margin-bottom: 8px;
+}
+
+.stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: #303133;
+}
+
+.stat-card-severity { border-left: 3px solid #f56c6c; }
+.stat-card-occurrence { border-left: 3px solid #e6a23c; }
+.stat-card-detection { border-left: 3px solid #409eff; }
+.stat-card-rpn { border-left: 3px solid #9b59b6; }
 </style>

@@ -1,11 +1,18 @@
 <template>
   <div class="service-visualization">
-    <h2>数据可视化服务</h2>
-    <p class="desc">服务层数据可视化：基于图形语法的多类型图表模板库，SVG渲染，HTML5兼容</p>
+    <div class="page-header">
+      <h2><el-icon><PieChart /></el-icon> 数据可视化服务</h2>
+      <p class="desc">服务层数据可视化：基于图形语法的多类型图表模板库，SVG渲染，HTML5兼容</p>
+    </div>
 
     <!-- 可视化模式选择 -->
-    <el-card>
-      <template #header>可视化配置</template>
+    <el-card shadow="hover">
+      <template #header>
+        <div class="card-header">
+          <span><el-icon><TrendCharts /></el-icon> 可视化配置</span>
+          <el-tag type="primary" effect="dark" round size="small">ECharts</el-tag>
+        </div>
+      </template>
       <el-form :model="queryForm" inline>
         <el-form-item label="图表模式">
           <el-radio-group v-model="vizMode" size="small">
@@ -17,17 +24,12 @@
         </el-form-item>
         <el-form-item label="设备ID">
           <el-select v-model="queryForm.deviceId" placeholder="选择设备" style="width: 150px">
-            <el-option label="设备 EQ-001" value="EQ-001" />
-            <el-option label="设备 EQ-002" value="EQ-002" />
-            <el-option label="设备 EQ-003" value="EQ-003" />
+            <el-option v-for="device in deviceList" :key="device" :label="device" :value="device" />
           </el-select>
         </el-form-item>
         <el-form-item v-if="vizMode === 'timeseries' || vizMode === 'heatmap'" label="传感器类型">
           <el-select v-model="queryForm.sensorType" style="width: 140px">
-            <el-option label="温度" value="temperature" />
-            <el-option label="振动" value="vibration" />
-            <el-option label="压力" value="pressure" />
-            <el-option label="电流" value="current" />
+            <el-option v-for="type in sensorTypeList" :key="type" :label="type" :value="type" />
           </el-select>
         </el-form-item>
         <el-form-item label="时间范围">
@@ -50,7 +52,7 @@
     </el-card>
 
     <!-- 时序图表 -->
-    <el-card v-if="vizMode === 'timeseries' && chartLoaded" class="chart-card">
+    <el-card v-if="vizMode === 'timeseries' && chartLoaded" shadow="hover" class="chart-card">
       <template #header>
         <div class="card-header">
           <span>时序数据可视化</span>
@@ -85,10 +87,10 @@
     </el-card>
 
     <!-- 饼图 -->
-    <el-card v-if="vizMode === 'pie' && chartLoaded" class="chart-card">
+    <el-card v-if="vizMode === 'pie' && chartLoaded" shadow="hover" class="chart-card">
       <template #header>
         <div class="card-header">
-          <span>传感器数据分布 — 饼图</span>
+          <span><el-icon><PieChart /></el-icon> 传感器数据分布 — 饼图</span>
           <el-tag type="info">按类型统计数据量</el-tag>
         </div>
       </template>
@@ -96,10 +98,10 @@
     </el-card>
 
     <!-- 雷达图 -->
-    <el-card v-if="vizMode === 'radar' && chartLoaded" class="chart-card">
+    <el-card v-if="vizMode === 'radar' && chartLoaded" shadow="hover" class="chart-card">
       <template #header>
         <div class="card-header">
-          <span>多维特征对比 — 雷达图</span>
+          <span><el-icon><DataAnalysis /></el-icon> 多维特征对比 — 雷达图</span>
           <el-tag type="info">多传感器统计指标对比</el-tag>
         </div>
       </template>
@@ -107,10 +109,10 @@
     </el-card>
 
     <!-- 热力图 -->
-    <el-card v-if="vizMode === 'heatmap' && chartLoaded" class="chart-card">
+    <el-card v-if="vizMode === 'heatmap' && chartLoaded" shadow="hover" class="chart-card">
       <template #header>
         <div class="card-header">
-          <span>时段热力分布 — 热力图</span>
+          <span><el-icon><DataLine /></el-icon> 时段热力分布 — 热力图</span>
           <el-tag type="info">按日期/小时聚合</el-tag>
         </div>
       </template>
@@ -118,7 +120,7 @@
     </el-card>
 
     <!-- 数据表格（时序模式） -->
-    <el-card v-if="vizMode === 'timeseries' && tableData.length > 0" class="table-card">
+    <el-card v-if="vizMode === 'timeseries' && tableData.length > 0" shadow="hover" class="table-card">
       <template #header>
         <div class="card-header">
           <span>数据明细</span>
@@ -141,7 +143,7 @@
     </el-card>
 
     <!-- 空状态 -->
-    <el-card v-if="!loading && !chartLoaded && hasSearched" class="empty-card">
+    <el-card v-if="!loading && !chartLoaded && hasSearched" shadow="hover" class="empty-card">
       <el-empty description="暂无数据，请调整查询条件">
         <template #image>
           <el-icon :size="60" color="#909399"><DataLine /></el-icon>
@@ -154,8 +156,8 @@
 <script setup>
 import { ref, reactive, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
-import { TrendCharts, DataLine } from '@element-plus/icons-vue'
-import { serviceApi } from '../../api/request'
+import { TrendCharts, DataLine, PieChart, DataAnalysis } from '@element-plus/icons-vue'
+import { serviceApi, storageApi } from '../../api/request'
 import * as echarts from 'echarts'
 
 const loading = ref(false)
@@ -175,19 +177,47 @@ let pieChartInstance = null
 let radarChartInstance = null
 let heatmapChartInstance = null
 
+// 动态设备和传感器类型列表
+const deviceList = ref([])
+const sensorTypeList = ref([])
+
 const formatLocalTime = (date) => {
   const pad = (n) => String(n).padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
 }
 
 const queryForm = reactive({
-  deviceId: 'EQ-001',
-  sensorType: 'temperature',
+  deviceId: '',
+  sensorType: '',
   timeRange: [
     formatLocalTime(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)),
     formatLocalTime(new Date())
   ]
 })
+
+// 加载设备和传感器类型列表
+const loadDevicesAndSensorTypes = async () => {
+  try {
+    const [devicesRes, sensorTypesRes] = await Promise.all([
+      storageApi.getAllDevices(),
+      storageApi.getAllSensorTypes()
+    ])
+    deviceList.value = devicesRes.devices || []
+    sensorTypeList.value = sensorTypesRes.sensorTypes || []
+    if (deviceList.value.length > 0 && !queryForm.deviceId) {
+      queryForm.deviceId = deviceList.value[0]
+    }
+    if (sensorTypeList.value.length > 0 && !queryForm.sensorType) {
+      queryForm.sensorType = sensorTypeList.value[0]
+    }
+  } catch (e) {
+    console.warn('加载设备/传感器列表失败，使用默认值', e)
+    deviceList.value = ['EQ-001', 'EQ-002', 'EQ-003']
+    sensorTypeList.value = ['temperature', 'vibration', 'pressure', 'current']
+    queryForm.deviceId = 'EQ-001'
+    queryForm.sensorType = 'temperature'
+  }
+}
 
 const chartData = ref({ xAxis: [], series: [], count: 0 })
 const tableData = ref([])
@@ -206,6 +236,7 @@ const resizeHandler = () => {
 }
 
 onMounted(() => {
+  loadDevicesAndSensorTypes()
   window.addEventListener('resize', resizeHandler)
 })
 
@@ -449,11 +480,24 @@ const getValueClass = (value) => {
 
 <style scoped>
 .service-visualization {
-  padding: 20px;
+  padding: 0;
+}
+.page-header {
+  margin-bottom: 24px;
+}
+.page-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 600;
+  color: #1a1a2e;
 }
 .desc {
   color: #909399;
-  margin-bottom: 20px;
+  margin: 0;
+  font-size: 14px;
 }
 .chart-card, .table-card, .empty-card {
   margin-top: 20px;
@@ -462,6 +506,12 @@ const getValueClass = (value) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+.card-header span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
 }
 .chart-controls {
   display: flex;

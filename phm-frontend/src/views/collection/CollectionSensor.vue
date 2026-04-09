@@ -1,25 +1,25 @@
 <template>
   <div class="collection-sensor">
-    <h2>传感器数据采集</h2>
-    <p class="desc">采集层核心功能：在线数据采集与批量数据采集</p>
+    <div class="page-header">
+      <h2><el-icon><Monitor /></el-icon> 传感器数据采集</h2>
+      <p class="desc">采集层核心功能：在线数据采集与批量数据采集</p>
+    </div>
 
     <el-row :gutter="20">
       <!-- 单条数据采集 -->
       <el-col :span="12">
-        <el-card>
+        <el-card shadow="hover">
           <template #header>
             <div class="card-header">
-              <span>在线数据采集</span>
-              <el-tag type="primary">实时监控数据</el-tag>
+              <span><el-icon><Monitor /></el-icon> 在线数据采集</span>
+              <el-tag type="primary" effect="dark" round size="small">实时监控</el-tag>
             </div>
           </template>
 
           <el-form :model="singleForm" label-width="100px">
             <el-form-item label="设备ID">
-              <el-select v-model="singleForm.deviceId" placeholder="选择设备">
-                <el-option label="设备 EQ-001" value="EQ-001" />
-                <el-option label="设备 EQ-002" value="EQ-002" />
-                <el-option label="设备 EQ-003" value="EQ-003" />
+              <el-select v-model="singleForm.deviceId" placeholder="选择设备" filterable>
+                <el-option v-for="device in deviceList" :key="device" :label="device" :value="device" />
               </el-select>
             </el-form-item>
 
@@ -51,7 +51,7 @@
 
             <el-form-item>
               <el-button type="primary" @click="sendSingleData" :loading="loading">
-                发送数据
+                {{ loading ? '采集中...' : '发送数据' }}
               </el-button>
               <el-button @click="resetSingleForm">重置</el-button>
             </el-form-item>
@@ -61,20 +61,18 @@
 
       <!-- 批量数据采集 -->
       <el-col :span="12">
-        <el-card>
+        <el-card shadow="hover">
           <template #header>
             <div class="card-header">
-              <span>批量数据采集</span>
-              <el-tag type="success">车载数据库</el-tag>
+              <span><el-icon><Document /></el-icon> 批量数据采集</span>
+              <el-tag type="success" effect="dark" round size="small">车载数据库</el-tag>
             </div>
           </template>
 
           <el-form :model="batchForm" label-width="100px">
             <el-form-item label="设备ID">
-              <el-select v-model="batchForm.deviceId" placeholder="选择设备">
-                <el-option label="设备 EQ-001" value="EQ-001" />
-                <el-option label="设备 EQ-002" value="EQ-002" />
-                <el-option label="设备 EQ-003" value="EQ-003" />
+              <el-select v-model="batchForm.deviceId" placeholder="选择设备" filterable>
+                <el-option v-for="device in deviceList" :key="device" :label="device" :value="device" />
               </el-select>
             </el-form-item>
 
@@ -100,7 +98,7 @@
 
             <el-form-item>
               <el-button type="success" @click="sendBatchData" :loading="batchLoading">
-                批量发送
+                {{ batchLoading ? '批量采集中...' : '批量发送' }}
               </el-button>
             </el-form-item>
           </el-form>
@@ -111,11 +109,11 @@
     <!-- CSV数据导入 -->
     <el-row :gutter="20" style="margin-top: 20px;">
       <el-col :span="24">
-        <el-card>
+        <el-card shadow="hover">
           <template #header>
             <div class="card-header">
-              <span>CSV数据导入</span>
-              <el-tag type="warning">公开数据集</el-tag>
+              <span><el-icon><Upload /></el-icon> CSV数据导入</span>
+              <el-tag type="warning" effect="dark" round size="small">公开数据集</el-tag>
             </div>
           </template>
 
@@ -164,7 +162,7 @@
 
             <el-form-item>
               <el-button type="warning" @click="importCsvData" :loading="csvLoading">
-                导入数据
+                {{ csvLoading ? '导入中...' : '导入数据' }}
               </el-button>
             </el-form-item>
           </el-form>
@@ -173,16 +171,19 @@
     </el-row>
 
     <!-- 数据流向展示 -->
-    <el-card class="data-flow" v-if="lastResponse">
+    <el-card class="data-flow" v-if="lastResponse" shadow="hover">
       <template #header>
-        <span>数据流向与处理结果</span>
+        <div class="card-header">
+          <span><el-icon><TrendCharts /></el-icon> 数据流向与处理结果</span>
+          <el-tag type="success" effect="dark" round size="small">完成</el-tag>
+        </div>
       </template>
       
-      <el-steps :active="flowActive" finish-status="success">
-        <el-step title="采集层" description="接收传感器数据" />
-        <el-step title="计算层" description="时间同步与特征提取" />
-        <el-step title="存储层" description="保存到时序数据库" />
-        <el-step title="返回结果" description="处理完成" />
+      <el-steps :active="flowActive" finish-status="success" process-status="process">
+        <el-step title="采集层" description="接收传感器数据" icon="Upload" />
+        <el-step title="计算层" description="时间同步与特征提取" icon="Cpu" />
+        <el-step title="存储层" description="保存到时序数据库" icon="Coin" />
+        <el-step title="返回结果" description="处理完成" icon="CircleCheck" />
       </el-steps>
 
       <div class="response-detail" v-if="lastResponse">
@@ -196,9 +197,12 @@
 
         <div v-if="lastResponse.features" class="features-section">
           <h4>提取的特征</h4>
-          <el-tag v-for="(value, key) in lastResponse.features" :key="key" class="feature-tag">
-            {{ featureNameMap[key] || key }}: {{ value?.toFixed ? value.toFixed(2) : value }}
-          </el-tag>
+          <div class="feature-grid">
+            <div v-for="(value, key) in lastResponse.features" :key="key" class="feature-item">
+              <span class="feature-label">{{ featureNameMap[key] || key }}</span>
+              <span class="feature-value">{{ value?.toFixed ? value.toFixed(4) : value }}</span>
+            </div>
+          </div>
         </div>
 
         <!-- CSV导入结果展示 -->
@@ -220,15 +224,49 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch, computed } from 'vue'
+import { ref, reactive, watch, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { collectionApi } from '../../api/request'
+import { Monitor, Document, Upload, TrendCharts } from '@element-plus/icons-vue'
+import { collectionApi, storageApi } from '../../api/request'
 
 const loading = ref(false)
 const batchLoading = ref(false)
 const csvLoading = ref(false)
 const flowActive = ref(0)
 const lastResponse = ref(null)
+
+// 动态设备列表
+const deviceList = ref([])
+const sensorTypeList = ref([])
+
+// 加载设备和传感器类型列表
+const loadDevicesAndSensorTypes = async () => {
+  try {
+    const [devicesRes, sensorTypesRes] = await Promise.all([
+      storageApi.getAllDevices(),
+      storageApi.getAllSensorTypes()
+    ])
+    deviceList.value = devicesRes.devices || []
+    sensorTypeList.value = sensorTypesRes.sensorTypes || []
+    console.log('加载设备列表:', deviceList.value)
+    console.log('加载传感器类型:', sensorTypeList.value)
+    // 设置默认设备ID
+    if (deviceList.value.length > 0) {
+      if (!singleForm.deviceId) singleForm.deviceId = deviceList.value[0]
+      if (!batchForm.deviceId) batchForm.deviceId = deviceList.value[0]
+    }
+  } catch (e) {
+    console.warn('加载设备/传感器列表失败，使用默认值', e)
+    deviceList.value = ['EQ-001', 'EQ-002', 'EQ-003']
+    sensorTypeList.value = ['temperature', 'vibration', 'pressure', 'current']
+    singleForm.deviceId = 'EQ-001'
+    batchForm.deviceId = 'EQ-001'
+  }
+}
+
+onMounted(() => {
+  loadDevicesAndSensorTypes()
+})
 
 // 传感器类型配置
 const sensorConfig = {
@@ -256,7 +294,7 @@ const featureNameMap = {
 
 // 单条数据表单
 const singleForm = reactive({
-  deviceId: 'EQ-001',
+  deviceId: '',
   sensorType: 'temperature',
   value: 45.0,
   unit: '°C',
@@ -274,7 +312,7 @@ watch(() => singleForm.sensorType, (newType) => {
 
 // 批量数据表单
 const batchForm = reactive({
-  deviceId: 'EQ-001',
+  deviceId: '',
   sensorType: 'temperature',
   count: 10,
   minValue: 35,
@@ -364,7 +402,7 @@ const sendBatchData = async () => {
 
 // 重置表单
 const resetSingleForm = () => {
-  singleForm.deviceId = 'EQ-001'
+  singleForm.deviceId = deviceList.value.length > 0 ? deviceList.value[0] : 'EQ-001'
   singleForm.sensorType = 'vibration'
   singleForm.value = 12.5
   singleForm.unit = 'mm/s'
@@ -418,12 +456,27 @@ const importCsvData = async () => {
 
 <style scoped>
 .collection-sensor {
-  padding: 20px;
+  padding: 0;
+}
+
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 600;
+  color: #1a1a2e;
 }
 
 .desc {
   color: #909399;
-  margin-bottom: 20px;
+  margin: 0;
+  font-size: 14px;
 }
 
 .card-header {
@@ -432,26 +485,68 @@ const importCsvData = async () => {
   align-items: center;
 }
 
+.card-header span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
 .data-flow {
   margin-top: 20px;
 }
 
 .response-detail {
-  margin-top: 20px;
+  margin-top: 24px;
   padding: 20px;
-  background: #f5f7fa;
-  border-radius: 4px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #f0f9ff 100%);
+  border-radius: 8px;
+}
+
+.response-detail h4 {
+  margin: 0 0 12px;
+  color: #303133;
 }
 
 .features-section {
-  margin-top: 15px;
+  margin-top: 20px;
 }
 
-.feature-tag {
-  margin: 5px;
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.feature-item {
+  background: white;
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+  border: 1px solid #e8ecf1;
+  transition: all 0.2s;
+}
+
+.feature-item:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  transform: translateY(-2px);
+}
+
+.feature-label {
+  display: block;
+  font-size: 12px;
+  color: #909399;
+  margin-bottom: 6px;
+}
+
+.feature-value {
+  display: block;
+  font-size: 16px;
+  font-weight: 600;
+  color: #409eff;
 }
 
 .csv-result-section {
-  margin-top: 15px;
+  margin-top: 20px;
 }
 </style>

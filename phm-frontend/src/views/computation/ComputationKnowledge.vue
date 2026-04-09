@@ -1,16 +1,18 @@
 <template>
   <div class="computation-knowledge">
-    <h2>知识图谱服务</h2>
-    <p class="desc">计算层核心功能：从多模态数据构建设备知识图谱</p>
+    <div class="page-header">
+      <h2><el-icon><Share /></el-icon> 知识图谱服务</h2>
+      <p class="desc">计算层核心功能：从多模态数据构建设备知识图谱</p>
+    </div>
 
     <el-row :gutter="20">
       <!-- 从图像构建 -->
       <el-col :span="12">
-        <el-card>
+        <el-card shadow="hover">
           <template #header>
             <div class="card-header">
-              <span>从设计图纸构建</span>
-              <el-tag type="primary">图像解析</el-tag>
+              <span><el-icon><Picture /></el-icon> 从设计图纸构建</span>
+              <el-tag type="primary" effect="dark" round size="small">图像解析</el-tag>
             </div>
           </template>
 
@@ -144,7 +146,7 @@
 <script setup>
 import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Upload } from '@element-plus/icons-vue'
+import { Upload, Share, Picture } from '@element-plus/icons-vue'
 import { computationApi } from '../../api/request'
 
 const imageLoading = ref(false)
@@ -253,18 +255,40 @@ const viewInStorage = () => {
 
 <style scoped>
 .computation-knowledge {
-  padding: 20px;
+  padding: 0;
+}
+
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 600;
+  color: #1a1a2e;
 }
 
 .desc {
   color: #909399;
-  margin-bottom: 20px;
+  margin: 0;
+  font-size: 14px;
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.card-header span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
 }
 
 .result-card {
