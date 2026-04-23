@@ -1,0 +1,20 @@
+# 编译产物
+**/target/
+**/dist/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# 系统文件
+nul
+.DS_Store
+Thumbs.db
+
+# Node
+**/node_modules/
+
+# 日志
+logs/
+*.log
