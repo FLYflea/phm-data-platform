@@ -1,7 +1,6 @@
 com\phm\storage\entity\timeseries\SensorTimeSeries.class
 com\phm\storage\service\TimeSeriesService.class
 com\phm\storage\service\KnowledgeGraphService.class
-com\phm\storage\entity\fmeca\FailureMode.class
 com\phm\storage\repository\graph\KnowledgeGraphRepository.class
 com\phm\storage\service\DocumentService$Document.class
 com\phm\storage\service\timeseries\StorageBlockManager$MultiZoneBufferPool.class

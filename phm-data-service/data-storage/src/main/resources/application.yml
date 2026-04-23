@@ -9,7 +9,7 @@ spring:
   # PostgreSQL 配置（主配置）
   # ========================================
   datasource:
-    url: jdbc:postgresql://localhost:5433/phm_db?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    url: jdbc:postgresql://localhost:5432/phm_db?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: phm
     password: phm123
     driver-class-name: org.postgresql.Driver

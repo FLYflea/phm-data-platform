@@ -89,7 +89,7 @@ public class FeatureEngineeringService {
 
         // 8. 波形指标 (Waveform Index) = RMS / 绝对均值
         double absMean = valid.stream().mapToDouble(v -> Math.abs(v)).average().orElse(0.0);
-        double waveformIndex = absMean > 0 ? rms / absmean(valid) : 0.0;
+        double waveformIndex = absMean > 0 ? rms / absMean : 0.0;
         features.put("waveformIndex", waveformIndex);
 
         // 9. 峰值指标 (Crest Factor) = Peak / RMS
