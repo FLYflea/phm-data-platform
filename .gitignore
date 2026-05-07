@@ -6,6 +6,7 @@
 .idea/
 *.iml
 .vscode/
+.qoder/
 
 # 系统文件
 nul
